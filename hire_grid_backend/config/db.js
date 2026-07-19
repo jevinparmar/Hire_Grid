@@ -2,12 +2,17 @@ const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 
+const sslConfig = process.env.DB_HOST && process.env.DB_HOST.includes("neon.tech")
+  ? { rejectUnauthorized: false }
+  : false;
+
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
   port: process.env.DB_PORT || 5432,
   database: process.env.DB_NAME || "hiregrid",
   user: process.env.DB_USER || "postgres",
   password: process.env.DB_PASSWORD || "postgres",
+  ssl: sslConfig,
 });
 
 const createTablesQuery = `
@@ -294,12 +299,6 @@ async function initDb() {
       ALTER TABLE companies ADD COLUMN IF NOT EXISTS display_order INTEGER;
       ALTER TABLE companies ADD COLUMN IF NOT EXISTS created_at BIGINT;
 
-      -- Copy old logo column to logo_url if logo_url is null
-      UPDATE companies SET logo_url = logo WHERE logo_url IS NULL AND logo IS NOT NULL;
-
-      -- Copy title to name if name is null for backward compatibility
-      UPDATE hierarchy_nodes SET name = title WHERE name IS NULL AND title IS NOT NULL;
-
       -- Users additions for access permissions
       ALTER TABLE users ADD COLUMN IF NOT EXISTS purchased_companies JSONB DEFAULT '[]';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_company_access JSONB DEFAULT '{}';
@@ -313,14 +312,41 @@ async function initDb() {
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(255);
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS item_name VARCHAR(255);
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS amount NUMERIC(10, 2) DEFAULT 0;
-
       -- Nullability alterations
-      ALTER TABLE hierarchy_nodes ALTER COLUMN title DROP NOT NULL;
       ALTER TABLE payment_requests ALTER COLUMN amount DROP NOT NULL;
     `);
-    console.log("Database tables created/verified successfully.");
 
-    // No demo records seeded as per user preference.
+    // 3. Conditional Legacy Migrations
+    const logoColCheck = await pool.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name='companies' AND column_name='logo'
+    `);
+    if (logoColCheck.rows.length > 0) {
+      await pool.query(`UPDATE companies SET logo_url = logo WHERE logo_url IS NULL AND logo IS NOT NULL`);
+    }
+
+    const titleColCheck = await pool.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name='hierarchy_nodes' AND column_name='title'
+    `);
+    if (titleColCheck.rows.length > 0) {
+      await pool.query(`UPDATE hierarchy_nodes SET name = title WHERE name IS NULL AND title IS NOT NULL`);
+      await pool.query(`ALTER TABLE hierarchy_nodes ALTER COLUMN title DROP NOT NULL`);
+    }
+
+    // Seed Super Admin if not exists
+    const adminCheck = await pool.query(`SELECT * FROM admin_users WHERE email = $1`, ['saumya@admin.com']);
+    if (adminCheck.rows.length === 0) {
+      const hashedPassword = await bcrypt.hash("RadheKrishna", 10);
+      const adminId = "super_admin_saumya";
+      await pool.query(
+        `INSERT INTO admin_users (id, email, password, name, role) VALUES ($1, $2, $3, $4, $5)`,
+        [adminId, 'saumya@admin.com', hashedPassword, 'Saumya', 'admin']
+      );
+      console.log("Super admin user Saumya seeded successfully.");
+    }
+
+    console.log("Database tables created/verified successfully.");
 
   } catch (err) {
     console.error("Database initialization failed:", err.message);
