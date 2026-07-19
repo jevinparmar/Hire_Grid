@@ -2,18 +2,20 @@ const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 
-const sslConfig = process.env.DB_HOST && process.env.DB_HOST.includes("neon.tech")
-  ? { rejectUnauthorized: false }
-  : false;
-
-const pool = new Pool({
-  host: process.env.DB_HOST || "localhost",
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || "hiregrid",
-  user: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD || "postgres",
-  ssl: sslConfig,
-});
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  })
+  : new Pool({
+    host: process.env.DB_HOST || "localhost",
+    port: process.env.DB_PORT || 5432,
+    database: process.env.DB_NAME || "hiregrid",
+    user: process.env.DB_USER || "postgres",
+    password: process.env.DB_PASSWORD || "postgres",
+  });
 
 const createTablesQuery = `
   -- 1. users
