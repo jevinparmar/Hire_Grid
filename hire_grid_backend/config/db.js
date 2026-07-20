@@ -8,7 +8,9 @@ const pool = process.env.DATABASE_URL
     ssl: {
       rejectUnauthorized: false,
     },
+    
   })
+  
   : new Pool({
     host: process.env.DB_HOST || "localhost",
     port: process.env.DB_PORT || 5432,
