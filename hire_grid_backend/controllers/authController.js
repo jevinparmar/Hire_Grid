@@ -100,7 +100,7 @@ exports.signup = async (req, res) => {
       // Create Student profile
       userResult = await pool.query(
         `INSERT INTO users (id, email, password, name, role, branch, semester, specialization, email_verified)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
          RETURNING id, email, name, role, branch, semester, email_verified`,
         [userId, email.toLowerCase(), hashedPassword, name, role, branch || null, semester || null, specialization || null]
       );
@@ -124,21 +124,7 @@ exports.signup = async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // If student, require OTP verification before providing JWT
-    if (role === "student") {
-      const otp = otpService.generateOtp();
-      await otpService.saveOtp(user.email, otp);
-      await emailService.sendOtpEmail(user.email, otp, "Verification");
-
-      return res.status(201).json({
-        success: true,
-        requiresVerification: true,
-        email: user.email,
-        message: "Registration initiated. Verification OTP has been sent to your email.",
-      });
-    }
-
-    // Admins / Content managers bypass OTP
+    // Students / Admins / Content managers bypass OTP
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, {
       expiresIn: JWT_EXPIRE,
     });
@@ -221,6 +207,8 @@ exports.login = async (req, res) => {
         return res.status(401).json({ error: "Invalid email or password." });
       }
 
+      // Bypass email verification check as OTP has been disabled
+      /*
       if (!user.email_verified) {
         return res.status(400).json({
           success: false,
@@ -229,6 +217,7 @@ exports.login = async (req, res) => {
           message: "Please verify your email first.",
         });
       }
+      */
     }
 
     // Generate JWT Token
