@@ -2,36 +2,113 @@ const { pool } = require("../config/db");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 
+const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DESC') => {
+  let sql = baseQuery;
+  const values = [];
+  let paramIndex = 1;
+  const whereClauses = [];
+
+  // Parse where clauses
+  for (const key of Object.keys(reqQuery)) {
+    if (key.startsWith('where_')) {
+      const field = key.replace('where_', '');
+      const valStr = reqQuery[key];
+      const colonIdx = valStr.indexOf(':');
+      if (colonIdx !== -1) {
+        const op = valStr.substring(0, colonIdx);
+        const val = valStr.substring(colonIdx + 1);
+        
+        let sqlOp = '=';
+        if (op === '==') sqlOp = '=';
+        else if (op === '!=') sqlOp = '!=';
+        else if (op === '>') sqlOp = '>';
+        else if (op === '<') sqlOp = '<';
+        
+        // Map camelCase fields to snake_case for DB columns if necessary
+        const dbField = field === 'parentId' ? 'parent_id' : 
+                        field === 'moduleType' ? 'module_type' :
+                        field === 'accessType' ? 'access_type' : field;
+                        
+        whereClauses.push(`${dbField} ${sqlOp} $${paramIndex++}`);
+        values.push(val);
+      }
+    }
+  }
+
+  if (whereClauses.length > 0) {
+    if (sql.toLowerCase().includes('where')) {
+      sql += ' AND ' + whereClauses.join(' AND ');
+    } else {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+  }
+
+  // Parse orderBy
+  let orderBy = defaultOrder;
+  if (reqQuery.orderBy) {
+    const field = reqQuery.orderBy;
+    const dir = reqQuery.orderDir || 'asc';
+    const dbField = field === 'createdAt' ? 'created_at' : field;
+    orderBy = `${dbField} ${dir}`;
+  }
+  
+  if (orderBy) {
+    sql += ` ORDER BY ${orderBy}`;
+  }
+
+  // Parse limit
+  if (reqQuery.limit) {
+    const limitVal = parseInt(reqQuery.limit, 10);
+    sql += ` LIMIT $${paramIndex++}`;
+    values.push(limitVal);
+  }
+
+  return { sql, values };
+};
+
 // ================= MODULES =================
 exports.getModules = async (req, res) => {
   try {
-    const result = await pool.query(`
+    const baseQuery = `
       SELECT 
-        id, 
-        title, 
-        questions, 
-        module_type AS "moduleType", 
-        parent_id AS "parentId", 
-        description, 
-        category, 
-        time_limit AS "timeLimit", 
-        pass_percentage AS "passPercentage", 
-        marks_per_question AS "marksPerQuestion", 
-        negative_marks AS "negativeMarks", 
-        total_marks AS "totalMarks", 
-        access_mode AS "accessMode", 
-        access_type AS "accessType", 
-        is_premium AS "isPremium", 
-        price, 
-        display_order AS "displayOrder", 
-        is_master AS "isMaster", 
-        sub_tests AS "subTests", 
-        created_at AS "createdAt",
-        created_by AS "createdBy"
-      FROM modules 
-      ORDER BY created_at DESC
-    `);
-    res.json({ success: true, modules: result.rows });
+        m.id, 
+        m.title, 
+        m.module_type AS "moduleType", 
+        m.parent_id AS "parentId", 
+        m.description, 
+        m.category, 
+        m.time_limit AS "timeLimit", 
+        m.pass_percentage AS "passPercentage", 
+        m.marks_per_question AS "marksPerQuestion", 
+        m.negative_marks AS "negativeMarks", 
+        m.total_marks AS "totalMarks", 
+        m.access_mode AS "accessMode", 
+        m.access_type AS "accessType", 
+        m.is_premium AS "isPremium", 
+        m.price, 
+        m.display_order AS "displayOrder", 
+        m.is_master AS "isMaster", 
+        m.sub_tests AS "subTests", 
+        m.created_at AS "createdAt",
+        m.created_by AS "createdBy",
+        COALESCE(q.q_count, 0) AS "questionCount"
+      FROM modules m
+      LEFT JOIN (
+        SELECT module_id, COUNT(*) AS q_count 
+        FROM questions 
+        GROUP BY module_id
+      ) q ON m.id = q.module_id
+    `;
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'm.created_at DESC');
+    const result = await pool.query(sql, values);
+    
+    // Fill mock questions array of the correct length so frontend doesn't break
+    const formattedModules = result.rows.map(r => ({
+      ...r,
+      questions: Array(parseInt(r.questionCount, 10)).fill({})
+    }));
+    
+    res.json({ success: true, modules: formattedModules });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -52,19 +129,17 @@ exports.saveModules = async (req, res) => {
   try {
     await pool.query("BEGIN");
     for (const m of modulesList) {
-      const questionsStr = JSON.stringify(m.questions || []);
       await pool.query(
         `INSERT INTO modules (
-          id, title, questions, module_type, parent_id,
+          id, title, module_type, parent_id,
           description, category, time_limit, pass_percentage,
           marks_per_question, negative_marks, total_marks,
           access_mode, access_type, is_premium, price,
           display_order, is_master, sub_tests, created_by
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
          ON CONFLICT (id) DO UPDATE 
          SET title = EXCLUDED.title, 
-             questions = EXCLUDED.questions, 
              module_type = EXCLUDED.module_type, 
              parent_id = EXCLUDED.parent_id,
              description = EXCLUDED.description,
@@ -85,7 +160,6 @@ exports.saveModules = async (req, res) => {
         [
           m.id || crypto.randomUUID(), 
           m.title, 
-          questionsStr, 
           m.moduleType || 'general', 
           m.parentId || null,
           m.description || null,
@@ -105,6 +179,29 @@ exports.saveModules = async (req, res) => {
           m.createdBy || null
         ]
       );
+
+      // Save/overwrite normalized questions if provided
+      if (m.questions && Array.isArray(m.questions)) {
+        await pool.query("DELETE FROM questions WHERE module_id = $1", [m.id]);
+        for (let i = 0; i < m.questions.length; i++) {
+          const q = m.questions[i];
+          const qId = q.id || crypto.randomUUID();
+          await pool.query(
+            `INSERT INTO questions (
+              id, module_id, question, options, correct_answer_index, svg_code, display_order
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              qId,
+              m.id,
+              q.question,
+              JSON.stringify(q.options || []),
+              q.correctAnswerIndex !== undefined ? q.correctAnswerIndex : (q.correct_answer_index !== undefined ? q.correct_answer_index : null),
+              q.svgCode || q.svg_code || null,
+              q.displayOrder !== undefined ? q.displayOrder : i
+            ]
+          );
+        }
+      }
     }
     await pool.query("COMMIT");
     res.json({ success: true });
@@ -180,17 +277,16 @@ exports.getStats = async (req, res) => {
     const totalStudentsRes = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'student'");
     const totalStudents = parseInt(totalStudentsRes.rows[0].count, 10);
 
-    const modulesRes = await pool.query("SELECT id, title FROM modules");
-    const modulesList = modulesRes.rows;
-
-    const chartData = [];
-    for (const m of modulesList) {
-      const scoresRes = await pool.query("SELECT score FROM scores WHERE module_id = $1", [m.id]);
-      const avgScore = scoresRes.rows.length > 0
-        ? Math.round(scoresRes.rows.reduce((acc, s) => acc + s.score, 0) / scoresRes.rows.length)
-        : 0;
-      chartData.push({ moduleName: m.title, avgScore });
-    }
+    const result = await pool.query(`
+      SELECT m.title AS "moduleName", COALESCE(ROUND(AVG(s.score)), 0) AS "avgScore"
+      FROM modules m
+      LEFT JOIN scores s ON s.module_id = m.id
+      GROUP BY m.id, m.title
+    `);
+    const chartData = result.rows.map(row => ({
+      moduleName: row.moduleName,
+      avgScore: parseInt(row.avgScore, 10)
+    }));
 
     res.json({
       success: true,
@@ -205,7 +301,7 @@ exports.getStats = async (req, res) => {
 // ================= COMPANIES =================
 exports.getCompanies = async (req, res) => {
   try {
-    const result = await pool.query(`
+    const baseQuery = `
       SELECT 
         id, 
         name, 
@@ -218,9 +314,10 @@ exports.getCompanies = async (req, res) => {
         display_order AS "displayOrder",
         created_at AS "createdAt",
         created_by AS "createdBy"
-      FROM companies 
-      ORDER BY created_at DESC
-    `);
+      FROM companies
+    `;
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'created_at DESC');
+    const result = await pool.query(sql, values);
     res.json({ success: true, companies: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -417,7 +514,7 @@ exports.updatePaymentRequest = async (req, res) => {
 // ================= HIERARCHY NODES =================
 exports.getHierarchyNodes = async (req, res) => {
   try {
-    const result = await pool.query(`
+    const baseQuery = `
       SELECT 
         id, 
         name, 
@@ -431,7 +528,9 @@ exports.getHierarchyNodes = async (req, res) => {
         created_at AS "createdAt",
         created_by AS "createdBy"
       FROM hierarchy_nodes
-    `);
+    `;
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'created_at DESC');
+    const result = await pool.query(sql, values);
     res.json({ success: true, nodes: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -579,7 +678,15 @@ exports.saveGatePaper = async (req, res) => {
 // ================= USER MANAGEMENT (ADMIN) =================
 exports.getUsers = async (req, res) => {
   try {
-    const result = await pool.query("SELECT id, name, email, role, branch, semester, xp, level, rank, specialization, has_full_premium AS \"hasFullPremium\", device_id AS \"deviceId\", active_plan_id AS \"activePlanId\", plan_expiry AS \"planExpiry\", purchased_companies AS \"purchasedCompanies\" FROM users ORDER BY created_at DESC");
+    const baseQuery = `
+      SELECT id, name, email, role, branch, semester, xp, level, rank, specialization, 
+             has_full_premium AS "hasFullPremium", device_id AS "deviceId", 
+             active_plan_id AS "activePlanId", plan_expiry AS "planExpiry", 
+             purchased_companies AS "purchasedCompanies" 
+      FROM users
+    `;
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'created_at DESC');
+    const result = await pool.query(sql, values);
     res.json({ success: true, users: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -654,9 +761,17 @@ exports.updateUser = async (req, res) => {
         if (data[parentKey] === null || typeof data[parentKey] !== "object") {
           data[parentKey] = {};
         }
-        data[parentKey][childKey] = fields[key];
+        if (fields[key] === "DELETE_FIELD" || fields[key] === null) {
+          delete data[parentKey][childKey];
+        } else {
+          data[parentKey][childKey] = fields[key];
+        }
       } else {
-        data[key] = fields[key];
+        if (fields[key] === "DELETE_FIELD") {
+          data[key] = null;
+        } else {
+          data[key] = fields[key];
+        }
       }
     }
 
@@ -849,7 +964,9 @@ exports.updateAdminUser = async (req, res) => {
 // ================= AUDIT LOGS =================
 exports.getAuditLogs = async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM audit_logs ORDER BY date DESC LIMIT 100");
+    const baseQuery = "SELECT * FROM audit_logs";
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, "date DESC");
+    const result = await pool.query(sql, values);
     res.json({ success: true, logs: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -931,7 +1048,7 @@ exports.getPlans = async (req, res) => {
 // ================= FEEDBACKS =================
 exports.getFeedbacks = async (req, res) => {
   try {
-    const result = await pool.query(`
+    const baseQuery = `
       SELECT 
         id, 
         user_id AS "userId", 
@@ -940,9 +1057,10 @@ exports.getFeedbacks = async (req, res) => {
         feedback_type AS "feedbackType", 
         message, 
         created_at AS "createdAt"
-      FROM feedbacks 
-      ORDER BY created_at DESC
-    `);
+      FROM feedbacks
+    `;
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'created_at DESC');
+    const result = await pool.query(sql, values);
     res.json({ success: true, feedbacks: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -970,6 +1088,22 @@ exports.deleteFeedback = async (req, res) => {
   try {
     await pool.query("DELETE FROM feedbacks WHERE id = $1", [id]);
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getModuleQuestions = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT id, question, options, correct_answer_index AS "correctAnswerIndex", svg_code AS "svgCode", display_order AS "displayOrder"
+       FROM questions
+       WHERE module_id = $1
+       ORDER BY display_order ASC`,
+      [id]
+    );
+    res.json({ success: true, questions: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

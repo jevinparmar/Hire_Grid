@@ -71,7 +71,6 @@ export function StudentHierarchyView({ currentUser, onOpenModule }) {
     if (!currentUser) return;
     try {
       const reqId = crypto.randomUUID();
-      const { setDoc, doc } = await import("firebase/firestore");
       await setDoc(doc(db, "access_requests", reqId), {
         id: reqId,
         userId: currentUser.id,

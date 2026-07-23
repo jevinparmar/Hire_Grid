@@ -13,6 +13,7 @@ import {
   Edit,
 } from "lucide-react";
 import { OperationType, collection, db, deleteDoc, doc, getDocs, handleFirestoreError, limit, onSnapshot, query, setDoc, where } from "../../firebase";
+import { api } from "../../lib/api";
 
 import { MathText } from "../common/MathText";
 import { SvgDiagram } from "../common/SvgDiagram";
@@ -845,11 +846,23 @@ export function AdminModulesTab({
     setDeleteModuleInfo({ id, title: moduleTitle });
   };
 
-  const handleEditModule = (m) => {
+  const handleEditModule = async (m) => {
     if (isContentManager && m.createdBy && m.createdBy !== userName) {
       alert("You are not authorized to edit this module. Only the creator or a Super Admin can edit it.");
       return;
     }
+
+    let fetchedQuestions = m.questions || [];
+    // If the questions are empty/placeholder, lazy load them
+    if (!fetchedQuestions || fetchedQuestions.length === 0 || Object.keys(fetchedQuestions[0]).length === 0) {
+      try {
+        const res = await api.get(`/modules/${m.id}/questions`);
+        fetchedQuestions = res.questions || [];
+      } catch (err) {
+        alert("Failed to load questions for editing: " + err.message);
+      }
+    }
+
     if (m.isMaster) {
       setIsCreatingMaster(true);
       setIsCreating(false);
@@ -857,7 +870,7 @@ export function AdminModulesTab({
     } else {
       setIsCreating(true);
       setIsCreatingMaster(false);
-      setParsedQuestions(m.questions || []);
+      setParsedQuestions(fetchedQuestions);
     }
     setEditingModuleId(m.id);
     setTitle(m.title);
@@ -1872,7 +1885,14 @@ Please generate the requested JSON now.`;
                   <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center z-20 relative">
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => setPreviewModule(module)}
+                        onClick={async () => {
+                          try {
+                            const res = await api.get(`/modules/${module.id}/questions`);
+                            setPreviewModule({ ...module, questions: res.questions || [] });
+                          } catch (err) {
+                            alert("Failed to load questions for preview: " + err.message);
+                          }
+                        }}
                         className="flex items-center px-3 py-1.5 rounded-lg text-sm font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 transition-colors"
                       >
                         <Eye className="w-4 h-4 mr-1.5" />

@@ -28,6 +28,7 @@ import { PremiumPurchaseView } from "../../components/student/PremiumPurchaseVie
 import { SvgDiagram } from "../../components/common/SvgDiagram";
 import { StudentHierarchyView } from "../../components/student/StudentHierarchyView";
 import { hasAccess } from "../../lib/accessControl";
+import { api } from "../../lib/api";
 import { OperationType, auth, collection, db, doc, getDocs, handleFirestoreError, limit, logOut, onSnapshot, orderBy, query, setDoc, where, writeBatch } from "../../firebase";
 
 import { MathText } from "../../components/common/MathText";
@@ -533,7 +534,7 @@ export default function StudentDashboard() {
     return <Navigate to="/" replace />;
   }
 
-  const handleStartModule = (mod, path) => {
+  const handleStartModule = async (mod, path) => {
     if (!hasItemAccess(mod, "module", path)) {
       alert("Access Denied. You do not have permission to view this content.");
       return;
@@ -542,13 +543,20 @@ export default function StudentDashboard() {
     if (mod.isMaster) {
       setActiveMasterModule(mod);
     } else {
-      setActiveModule(mod);
-      setCurrentQuestionIndex(-1);
-      setAnswers({});
-      setMarkedForReview({});
-      setIsFinished(false);
-      setIsReviewing(false);
-      setTimeLeft((mod.timeLimit || 30) * 60);
+      try {
+        const res = await api.get(`/modules/${mod.id}/questions`);
+        const fetchedQuestions = res.questions || [];
+        const fullModuleObj = { ...mod, questions: fetchedQuestions };
+        setActiveModule(fullModuleObj);
+        setCurrentQuestionIndex(-1);
+        setAnswers({});
+        setMarkedForReview({});
+        setIsFinished(false);
+        setIsReviewing(false);
+        setTimeLeft((mod.timeLimit || 30) * 60);
+      } catch (err) {
+        alert("Failed to load questions: " + err.message);
+      }
     }
   };
 

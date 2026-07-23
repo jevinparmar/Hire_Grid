@@ -4,6 +4,9 @@ const dataController = require("../controllers/dataController");
 const parseController = require("../controllers/parseController");
 const authMiddleware = require("../middlewares/authMiddleware");
 
+// Protect all API routes
+router.use(authMiddleware);
+
 // Parse MCQ (Gemini)
 router.post("/parse-mcq", parseController.parseMcq);
 
@@ -11,6 +14,7 @@ router.post("/parse-mcq", parseController.parseMcq);
 router.get("/modules", dataController.getModules);
 router.post("/modules", dataController.saveModules);
 router.delete("/modules/:id", dataController.deleteModule);
+router.get("/modules/:id/questions", dataController.getModuleQuestions);
 
 // Scores
 router.post("/scores", dataController.submitScore);

@@ -8,7 +8,9 @@ const pool = process.env.DATABASE_URL
     ssl: {
       rejectUnauthorized: false,
     },
-    
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
   })
   
   : new Pool({
@@ -17,6 +19,9 @@ const pool = process.env.DATABASE_URL
     database: process.env.DB_NAME || "hiregrid",
     user: process.env.DB_USER || "postgres",
     password: process.env.DB_PASSWORD || "postgres",
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
   });
 
 const createTablesQuery = `
@@ -261,6 +266,18 @@ const createTablesQuery = `
     message TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+
+  -- 22. questions
+  CREATE TABLE IF NOT EXISTS questions (
+    id VARCHAR(255) PRIMARY KEY,
+    module_id VARCHAR(255) REFERENCES modules(id) ON DELETE CASCADE,
+    question TEXT NOT NULL,
+    options JSONB NOT NULL,
+    correct_answer_index INTEGER,
+    svg_code TEXT,
+    display_order INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
 `;
 
 
@@ -269,6 +286,18 @@ async function initDb() {
   try {
     // 1. Create tables
     await pool.query(createTablesQuery);
+
+    // Create Indexes
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_questions_module_id ON questions(module_id);
+      CREATE INDEX IF NOT EXISTS idx_modules_module_type ON modules(module_type);
+      CREATE INDEX IF NOT EXISTS idx_modules_parent_id ON modules(parent_id);
+      CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
+      CREATE INDEX IF NOT EXISTS idx_scores_module_id ON scores(module_id);
+      CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_id ON hierarchy_nodes(parent_id);
+      CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_type ON hierarchy_nodes(type);
+      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+    `);
 
     await pool.query(`
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS item_type VARCHAR(100) DEFAULT 'full_premium';

@@ -95,10 +95,30 @@ export async function getDoc(docRef) {
 // Get collection docs
 export async function getDocs(queryRef) {
   try {
-    const res = await api.get(`/${queryRef.collectionName}`);
+    let url = `/${queryRef.collectionName}`;
+    const params = new URLSearchParams();
+    
+    if (queryRef.clauses) {
+      for (const clause of queryRef.clauses) {
+        if (clause.type === "where") {
+          params.append(`where_${clause.field}`, `${clause.op}:${clause.val}`);
+        } else if (clause.type === "orderBy") {
+          params.append("orderBy", clause.field);
+          params.append("orderDir", clause.dir || "asc");
+        } else if (clause.type === "limit") {
+          params.append("limit", clause.num);
+        }
+      }
+    }
+    const queryString = params.toString();
+    if (queryString) {
+      url += `?${queryString}`;
+    }
+
+    const res = await api.get(url);
     let items = res.modules || res.companies || res.exams || res.requests || res.nodes || res.notifications || res.branches || res.papers || res.users || res.logs || res.admin_users || res.feedbacks || [];
     
-    // Apply basic client-side filtering if where clauses are present
+    // Fallback: keep client-side filters to avoid any schema mapping mismatches
     if (queryRef.clauses) {
       for (const clause of queryRef.clauses) {
         if (clause.type === "where") {
@@ -249,3 +269,5 @@ export function handleFirestoreError(error, operationType, path) {
   console.error("Firestore Error: ", JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
+
+export const deleteField = () => "DELETE_FIELD";

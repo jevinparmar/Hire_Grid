@@ -206,7 +206,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
 
   const handleRevokeAccess = async (studentId, type, itemId) => {
     try {
-      const { deleteField } = await import("firebase/firestore");
+      const { deleteField } = await import("../../firebase");
       let updateField = "";
       if (type === "full_premium") {
         await updateDoc(doc(db, "users", studentId), {
