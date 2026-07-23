@@ -7,6 +7,14 @@ const authMiddleware = require("../middlewares/authMiddleware");
 // Protect all API routes
 router.use(authMiddleware);
 
+// Cache-Control headers for GET endpoints to reduce DB hits
+router.use((req, res, next) => {
+  if (req.method === "GET") {
+    res.setHeader("Cache-Control", "private, max-age=10");
+  }
+  next();
+});
+
 // Parse MCQ (Gemini)
 router.post("/parse-mcq", parseController.parseMcq);
 
