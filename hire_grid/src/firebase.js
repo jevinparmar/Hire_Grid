@@ -81,11 +81,46 @@ const createDocSnap = (id, data) => ({
   data: () => data,
 });
 
+const memoryCache = new Map();
+const CACHE_TTL = 30000; // 30 seconds cache TTL
+
+function getCache(key) {
+  const cached = memoryCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  return null;
+}
+
+function setCache(key, data) {
+  memoryCache.set(key, {
+    timestamp: Date.now(),
+    data,
+  });
+}
+
+function invalidateCache(collectionName) {
+  for (const key of memoryCache.keys()) {
+    if (key === collectionName || key.startsWith(`${collectionName}?`) || key.startsWith(`/${collectionName}`)) {
+      memoryCache.delete(key);
+    }
+  }
+}
+
 // Get a single doc
 export async function getDoc(docRef) {
   try {
-    const res = await api.get(`/${docRef.collectionName}/${docRef.id}`);
+    const url = `/${docRef.collectionName}/${docRef.id}`;
+    const cachedItem = getCache(url);
+    if (cachedItem) {
+      return createDocSnap(docRef.id, cachedItem);
+    }
+
+    const res = await api.get(url);
     const data = res.success ? res.settings || res.user || res.data : null;
+    if (data) {
+      setCache(url, data);
+    }
     return createDocSnap(docRef.id, data);
   } catch (err) {
     return createDocSnap(docRef.id, null);
@@ -115,6 +150,17 @@ export async function getDocs(queryRef) {
       url += `?${queryString}`;
     }
 
+    const cachedItems = getCache(url);
+    if (cachedItems) {
+      const docs = cachedItems.map(item => createDocSnap(item.id, item));
+      return {
+        docs,
+        empty: docs.length === 0,
+        size: docs.length,
+        forEach: (callback) => docs.forEach(callback),
+      };
+    }
+
     const res = await api.get(url);
     let items = res.modules || res.companies || res.exams || res.requests || res.nodes || res.notifications || res.branches || res.papers || res.users || res.logs || res.admin_users || res.feedbacks || [];
     
@@ -132,6 +178,7 @@ export async function getDocs(queryRef) {
       }
     }
     
+    setCache(url, items);
     const docs = items.map(item => createDocSnap(item.id, item));
     return {
       docs,
@@ -147,6 +194,7 @@ export async function getDocs(queryRef) {
 const activeListeners = new Set();
 
 function notifyCollectionChange(collectionName) {
+  invalidateCache(collectionName);
   for (const listener of activeListeners) {
     if (listener.collectionName === collectionName) {
       listener.trigger();

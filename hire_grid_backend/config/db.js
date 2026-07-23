@@ -284,6 +284,19 @@ const createTablesQuery = `
 
 async function initDb() {
   try {
+    // Check if users table already exists to skip migration overhead
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'users'
+      )
+    `);
+    
+    if (tableCheck.rows[0].exists) {
+      console.log("Database already initialized. Skipping startup migrations.");
+      return;
+    }
+
     // 1. Create tables
     await pool.query(createTablesQuery);
 
