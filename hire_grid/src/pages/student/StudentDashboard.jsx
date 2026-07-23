@@ -49,8 +49,6 @@ export default function StudentDashboard() {
   const [modules, setModules] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [exams, setExams] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [activeModule, setActiveModule] = useState(null);
   const [activeMasterModule, setActiveMasterModule] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -332,25 +330,7 @@ export default function StudentDashboard() {
     }
   };
 
-  useEffect(() => {
-    if (!auth.currentUser) return;
 
-    // Subscribe to notifications
-    const notifQuery = query(
-      collection(db, "notifications"),
-      orderBy("createdAt", "desc"),
-      limit(20),
-    );
-    const unsubNotif = onSnapshot(notifQuery, (snapshot) => {
-      const notifs = [];
-      snapshot.forEach((doc) => {
-        notifs.push({ id: doc.id, ...doc.data() });
-      });
-      setNotifications(notifs);
-    });
-
-    return () => unsubNotif();
-  }, [auth.currentUser?.uid]);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -864,7 +844,7 @@ export default function StudentDashboard() {
       {/* Sidebar */}
       <div
         className={`bg-white/95 dark:bg-[#0B1528] border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 z-50 shrink-0
-        fixed md:relative inset-y-0 left-0 h-full shadow-xl
+        fixed md:sticky md:top-0 left-0 h-screen shadow-xl
         ${sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0 w-72 md:w-20"}`}
       >
         {/* Sidebar Header */}
@@ -962,51 +942,6 @@ export default function StudentDashboard() {
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">
-            <div className="relative">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-full transition-colors relative"
-              >
-                <Bell className="w-5 h-5" />
-                {notifications.length > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
-                )}
-              </button>
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 glass-panel rounded-xl shadow-xl border border-emerald-500/20 overflow-hidden z-50">
-                  <div className="p-4 border-b border-emerald-500/20 bg-slate-100 dark:bg-slate-900/40">
-                    <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                      Notifications
-                    </h3>
-                  </div>
-                  <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                    {notifications.length === 0 ? (
-                      <div className="p-4 text-center text-slate-500 text-sm">
-                        No new notifications
-                      </div>
-                    ) : (
-                      notifications.map((notif) => (
-                        <div
-                          key={notif.id}
-                          className="p-4 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-default"
-                        >
-                          <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">
-                            {notif.title}
-                          </h4>
-                          <p className="text-xs text-slate-700 dark:text-slate-300">
-                            {notif.message}
-                          </p>
-                          <span className="text-[10px] text-slate-400 mt-2 block">
-                            {new Date(notif.createdAt).toLocaleString()}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            <ThemeToggle />
             <button
               onClick={handleLogout}
               className="inline-flex items-center px-3 py-1.5 border border-emerald-500/20 text-sm font-medium rounded-md text-slate-700 dark:text-slate-300 glass-panel hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
