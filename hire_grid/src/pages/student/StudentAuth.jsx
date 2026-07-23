@@ -32,6 +32,22 @@ export default function StudentAuth() {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    const userStr = localStorage.getItem("user");
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user && user.role === "student") {
+          navigate("/student-dashboard", { replace: true });
+        }
+      } catch (e) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
+    }
+  }, [navigate]);
+
+  useEffect(() => {
     let interval = null;
     if (resendCooldown > 0) {
       interval = setInterval(() => {
