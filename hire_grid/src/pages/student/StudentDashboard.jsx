@@ -350,7 +350,7 @@ export default function StudentDashboard() {
     });
 
     return () => unsubNotif();
-  }, [auth.currentUser]);
+  }, [auth.currentUser?.uid]);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -479,7 +479,7 @@ export default function StudentDashboard() {
       unsubExams();
       unsubUser();
     };
-  }, [auth.currentUser]);
+  }, [auth.currentUser?.uid]);
 
   useEffect(() => {
     // We fetch user's scores
