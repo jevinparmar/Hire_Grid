@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, Navigate, useNavigate } from "react-router-dom";
 import { ShieldCheck, LogOut, BookOpen, Server, MessageSquare } from "lucide-react";
-import { ThemeToggle } from "../../components/common/ThemeToggle";
 import { AdminCompaniesTab } from "../../components/admin/AdminCompaniesTab";
 import { HierarchyBuilder } from "../../components/admin/HierarchyBuilder";
 import { AdminFeedbacksTab } from "../../components/admin/AdminFeedbacksTab";
@@ -34,7 +33,6 @@ export default function ContentManagerDashboard() {
               </span>
             </div>
             <div className="flex items-center space-x-4">
-              <ThemeToggle />
               <span className="text-sm font-medium text-slate-500 dark:text-slate-400 hidden sm:block">
                 {userName}
               </span>

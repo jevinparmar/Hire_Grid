@@ -11,7 +11,6 @@ import {
   ChevronRight,
   MessageSquare,
 } from "lucide-react";
-import { ThemeToggle } from "../../components/common/ThemeToggle";
 import { AdminUsersTab } from "../../components/admin/AdminUsersTab";
 import { AdminSettingsTab } from "../../components/admin/AdminSettingsTab";
 import { AdminPaymentRequestsTab } from "../../components/admin/AdminPaymentRequestsTab";
@@ -195,7 +194,6 @@ export default function AdminDashboard() {
             )}
           </div>
           <div className="flex items-center space-x-4">
-            <ThemeToggle />
           </div>
         </header>
 

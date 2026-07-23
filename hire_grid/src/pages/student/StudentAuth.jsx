@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ShieldCheck, Mail, Lock, User, ArrowLeft, Timer, CheckCircle, RefreshCw } from "lucide-react";
-import { ThemeToggle } from "../../components/common/ThemeToggle";
 import { api } from "../../lib/api";
 
 export default function StudentAuth() {
@@ -242,7 +241,6 @@ export default function StudentAuth() {
           <span className="text-slate-600 dark:text-slate-400 font-medium hidden lg:block uppercase tracking-widest text-xs">
             Auth Protocol v2.7
           </span>
-          <ThemeToggle />
           <Link
             to="/admin"
             className="text-slate-500/50 dark:text-slate-400/50 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium text-sm tracking-wider transition-colors px-2"
