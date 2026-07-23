@@ -29,8 +29,16 @@ const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DES
                         field === 'moduleType' ? 'module_type' :
                         field === 'accessType' ? 'access_type' : field;
                         
-        whereClauses.push(`${dbField} ${sqlOp} $${paramIndex++}`);
-        values.push(val);
+        if (val === 'null' || val === 'undefined') {
+          if (sqlOp === '=') {
+            whereClauses.push(`${dbField} IS NULL`);
+          } else {
+            whereClauses.push(`${dbField} IS NOT NULL`);
+          }
+        } else {
+          whereClauses.push(`${dbField} ${sqlOp} $${paramIndex++}`);
+          values.push(val);
+        }
       }
     }
   }
