@@ -292,25 +292,25 @@ async function initDb() {
       )
     `);
     
-    if (tableCheck.rows[0].exists) {
-      console.log("Database already initialized. Skipping startup migrations.");
-      return;
+    if (!tableCheck.rows[0].exists) {
+      console.log("Creating database tables...");
+      // 1. Create tables
+      await pool.query(createTablesQuery);
+
+      // Create Indexes
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_questions_module_id ON questions(module_id);
+        CREATE INDEX IF NOT EXISTS idx_modules_module_type ON modules(module_type);
+        CREATE INDEX IF NOT EXISTS idx_modules_parent_id ON modules(parent_id);
+        CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
+        CREATE INDEX IF NOT EXISTS idx_scores_module_id ON scores(module_id);
+        CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_id ON hierarchy_nodes(parent_id);
+        CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_type ON hierarchy_nodes(type);
+        CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+      `);
+    } else {
+      console.log("Database tables already exist. Running schema verification and migrations...");
     }
-
-    // 1. Create tables
-    await pool.query(createTablesQuery);
-
-    // Create Indexes
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_questions_module_id ON questions(module_id);
-      CREATE INDEX IF NOT EXISTS idx_modules_module_type ON modules(module_type);
-      CREATE INDEX IF NOT EXISTS idx_modules_parent_id ON modules(parent_id);
-      CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
-      CREATE INDEX IF NOT EXISTS idx_scores_module_id ON scores(module_id);
-      CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_id ON hierarchy_nodes(parent_id);
-      CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_type ON hierarchy_nodes(type);
-      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-    `);
 
     await pool.query(`
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS item_type VARCHAR(100) DEFAULT 'full_premium';
