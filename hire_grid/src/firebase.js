@@ -124,6 +124,16 @@ export async function getDocs(queryRef) {
   }
 }
 
+const activeListeners = new Set();
+
+function notifyCollectionChange(collectionName) {
+  for (const listener of activeListeners) {
+    if (listener.collectionName === collectionName) {
+      listener.trigger();
+    }
+  }
+}
+
 // Set doc
 export async function setDoc(docRef, data, options = {}) {
   let finalData = data;
@@ -133,25 +143,32 @@ export async function setDoc(docRef, data, options = {}) {
       finalData = { ...current.data(), ...data };
     }
   }
-  return api.post(`/${docRef.collectionName}`, { id: docRef.id, ...finalData });
+  const result = await api.post(`/${docRef.collectionName}`, { id: docRef.id, ...finalData });
+  notifyCollectionChange(docRef.collectionName);
+  return result;
 }
 
 // Add doc
 export async function addDoc(collectionRef, data) {
   const newId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
   const finalData = { id: newId, ...data };
-  await api.post(`/${collectionRef.collectionName}`, finalData);
+  const result = await api.post(`/${collectionRef.collectionName}`, finalData);
+  notifyCollectionChange(collectionRef.collectionName);
   return { id: newId };
 }
 
 // Update doc
 export async function updateDoc(docRef, data) {
-  return api.put(`/${docRef.collectionName}/${docRef.id}`, data);
+  const result = await api.put(`/${docRef.collectionName}/${docRef.id}`, data);
+  notifyCollectionChange(docRef.collectionName);
+  return result;
 }
 
 // Delete doc
 export async function deleteDoc(docRef) {
-  return api.delete(`/${docRef.collectionName}/${docRef.id}`);
+  const result = await api.delete(`/${docRef.collectionName}/${docRef.id}`);
+  notifyCollectionChange(docRef.collectionName);
+  return result;
 }
 
 // onSnapshot (polling implementation)
@@ -172,12 +189,19 @@ export function onSnapshot(queryRef, onNext, onError) {
     }
   };
 
+  const listenerObj = {
+    collectionName: queryRef.collectionName,
+    trigger: fetchAndCallback,
+  };
+  activeListeners.add(listenerObj);
+
   fetchAndCallback();
-  const intervalId = setInterval(fetchAndCallback, 4000);
+  const intervalId = setInterval(fetchAndCallback, 15000);
 
   return () => {
     active = false;
     clearInterval(intervalId);
+    activeListeners.delete(listenerObj);
   };
 }
 

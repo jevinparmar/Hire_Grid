@@ -156,13 +156,15 @@ exports.login = async (req, res) => {
         // Password-only login (for super admin)
         const adminsResult = await pool.query(`SELECT * FROM admin_users`);
         let matchedUser = null;
-        for (const row of adminsResult.rows) {
-          const isMatch = await bcrypt.compare(password, row.password);
-          if (isMatch) {
-            matchedUser = row;
-            break;
-          }
-        }
+        
+        const checkResults = await Promise.all(
+          adminsResult.rows.map(async (row) => {
+            const isMatch = await bcrypt.compare(password, row.password);
+            return isMatch ? row : null;
+          })
+        );
+        
+        matchedUser = checkResults.find((u) => u !== null) || null;
 
         if (!matchedUser) {
           return res.status(401).json({ error: "Invalid password." });
