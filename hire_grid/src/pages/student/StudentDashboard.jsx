@@ -21,6 +21,7 @@ import {
   Info,
   ShieldCheck,
   Lock,
+  MessageSquare,
 } from "lucide-react";
 import { ThemeToggle } from "../../components/common/ThemeToggle";
 import { PremiumPurchaseView } from "../../components/student/PremiumPurchaseView";
@@ -899,6 +900,16 @@ export default function StudentDashboard() {
             onClick={() => handleNavClick("companies")}
             isOpen={sidebarOpen}
           />
+
+          <SidebarItem
+            icon={<MessageSquare />}
+            label="Send Feedback"
+            active={
+              activeTab === "feedback" && !activeModule && !activeMasterModule
+            }
+            onClick={() => handleNavClick("feedback")}
+            isOpen={sidebarOpen}
+          />
         </div>
 
         {/* User Profile */}
@@ -1261,6 +1272,12 @@ export default function StudentDashboard() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {activeTab === "feedback" && (
+                  <div className="max-w-6xl mx-auto space-y-6">
+                    <StudentFeedbackForm currentUser={currentUserDoc} />
                   </div>
                 )}
 
@@ -2193,5 +2210,98 @@ export function SidebarItem({ icon, label, active, onClick, isOpen }) {
         {label}
       </span>
     </button>
+  );
+}
+
+function StudentFeedbackForm({ currentUser }) {
+  const [feedbackType, setFeedbackType] = useState("general");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!message.trim()) return;
+    setLoading(true);
+    try {
+      const fbId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+      await setDoc(doc(db, "feedbacks", fbId), {
+        id: fbId,
+        userId: currentUser?.id || "anonymous",
+        userName: currentUser?.name || "Anonymous",
+        userEmail: currentUser?.email || "",
+        feedbackType,
+        message,
+        createdAt: Date.now(),
+      });
+      setSuccess(true);
+      setMessage("");
+    } catch (err) {
+      alert("Failed to send feedback: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="glass-panel p-6 sm:p-8 rounded-2xl shadow-sm border border-emerald-500/20 max-w-lg mx-auto">
+      <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Send Feedback</h3>
+      <p className="text-sm text-slate-500 mb-6">
+        Let us know what you think, report a problem, or suggest improvements. We read all feedback!
+      </p>
+
+      {success ? (
+        <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 p-4 rounded-xl text-center">
+          <p className="text-emerald-700 dark:text-emerald-400 font-bold mb-2">Thank you!</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Your feedback has been submitted successfully.</p>
+          <button
+            onClick={() => setSuccess(false)}
+            className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors"
+          >
+            Send Another Message
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              Feedback Type
+            </label>
+            <select
+              value={feedbackType}
+              onChange={(e) => setFeedbackType(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+            >
+              <option value="general">General Feedback</option>
+              <option value="bug">Report a Bug / Problem</option>
+              <option value="improvement">Need Improvement</option>
+              <option value="feature">Feature Request</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              Your Message
+            </label>
+            <textarea
+              rows={5}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Tell us details..."
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || !message.trim()}
+            className="w-full py-3 px-4 rounded-xl shadow-sm text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+          >
+            {loading ? "Sending..." : "Submit Feedback"}
+          </button>
+        </form>
+      )}
+    </div>
   );
 }

@@ -250,6 +250,17 @@ const createTablesQuery = `
     last_attempt_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+
+  -- 21. feedbacks
+  CREATE TABLE IF NOT EXISTS feedbacks (
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    user_name VARCHAR(255),
+    user_email VARCHAR(255),
+    feedback_type VARCHAR(100),
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
 `;
 
 
@@ -268,6 +279,11 @@ async function initDb() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP NULL;
+      
+      -- Add created_by columns
+      ALTER TABLE companies ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+      ALTER TABLE modules ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+      ALTER TABLE hierarchy_nodes ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
       
       -- Modules column additions
       ALTER TABLE modules ADD COLUMN IF NOT EXISTS description TEXT;

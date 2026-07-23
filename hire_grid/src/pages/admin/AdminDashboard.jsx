@@ -9,12 +9,14 @@ import {
   IndianRupee,
   Menu,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 import { ThemeToggle } from "../../components/common/ThemeToggle";
 import { AdminUsersTab } from "../../components/admin/AdminUsersTab";
 import { AdminSettingsTab } from "../../components/admin/AdminSettingsTab";
 import { AdminPaymentRequestsTab } from "../../components/admin/AdminPaymentRequestsTab";
 import { AdminDeviceRequestsTab } from "../../components/admin/AdminDeviceRequestsTab";
+import { AdminFeedbacksTab } from "../../components/admin/AdminFeedbacksTab";
 
 export default function AdminDashboard() {
   const location = useLocation();
@@ -127,6 +129,13 @@ export default function AdminDashboard() {
             onClick={() => setView("system", "settings")}
             isOpen={sidebarOpen}
           />
+          <SidebarItem
+            icon={<MessageSquare />}
+            label="Student Feedbacks"
+            active={activeWorkspace === "system" && activeSubTab === "feedbacks"}
+            onClick={() => setView("system", "feedbacks")}
+            isOpen={sidebarOpen}
+          />
         </div>
 
         {/* User Profile */}
@@ -210,6 +219,9 @@ export default function AdminDashboard() {
               )}
               {activeWorkspace === "system" && activeSubTab === "settings" && (
                 <AdminSettingsTab />
+              )}
+              {activeWorkspace === "system" && activeSubTab === "feedbacks" && (
+                <AdminFeedbacksTab isContentManager={false} />
               )}
             </div>
           </div>

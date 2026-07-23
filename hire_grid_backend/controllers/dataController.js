@@ -26,7 +26,8 @@ exports.getModules = async (req, res) => {
         display_order AS "displayOrder", 
         is_master AS "isMaster", 
         sub_tests AS "subTests", 
-        created_at AS "createdAt"
+        created_at AS "createdAt",
+        created_by AS "createdBy"
       FROM modules 
       ORDER BY created_at DESC
     `);
@@ -58,9 +59,9 @@ exports.saveModules = async (req, res) => {
           description, category, time_limit, pass_percentage,
           marks_per_question, negative_marks, total_marks,
           access_mode, access_type, is_premium, price,
-          display_order, is_master, sub_tests
+          display_order, is_master, sub_tests, created_by
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
          ON CONFLICT (id) DO UPDATE 
          SET title = EXCLUDED.title, 
              questions = EXCLUDED.questions, 
@@ -79,7 +80,8 @@ exports.saveModules = async (req, res) => {
              price = EXCLUDED.price,
              display_order = EXCLUDED.display_order,
              is_master = EXCLUDED.is_master,
-             sub_tests = EXCLUDED.sub_tests`,
+             sub_tests = EXCLUDED.sub_tests,
+             created_by = COALESCE(modules.created_by, EXCLUDED.created_by)`,
         [
           m.id || crypto.randomUUID(), 
           m.title, 
@@ -99,7 +101,8 @@ exports.saveModules = async (req, res) => {
           m.price || null,
           m.displayOrder || null,
           m.isMaster !== undefined ? m.isMaster : false,
-          JSON.stringify(m.subTestests || m.subTests || [])
+          JSON.stringify(m.subTestests || m.subTests || []),
+          m.createdBy || null
         ]
       );
     }
@@ -213,7 +216,8 @@ exports.getCompanies = async (req, res) => {
         price,
         sell_type AS "sellType",
         display_order AS "displayOrder",
-        created_at AS "createdAt"
+        created_at AS "createdAt",
+        created_by AS "createdBy"
       FROM companies 
       ORDER BY created_at DESC
     `);
@@ -224,14 +228,14 @@ exports.getCompanies = async (req, res) => {
 };
 
 exports.saveCompany = async (req, res) => {
-  const { id, name, description, logoUrl, accessType, isPremium, price, sellType, displayOrder, createdAt } = req.body;
+  const { id, name, description, logoUrl, accessType, isPremium, price, sellType, displayOrder, createdAt, createdBy } = req.body;
   const compId = id || crypto.randomUUID();
   try {
     await pool.query(
       `INSERT INTO companies (
-        id, name, description, logo_url, access_type, is_premium, price, sell_type, display_order, created_at
+        id, name, description, logo_url, access_type, is_premium, price, sell_type, display_order, created_at, created_by
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (id) DO UPDATE
        SET name = EXCLUDED.name, 
            description = EXCLUDED.description, 
@@ -241,7 +245,8 @@ exports.saveCompany = async (req, res) => {
            price = EXCLUDED.price,
            sell_type = EXCLUDED.sell_type,
            display_order = EXCLUDED.display_order,
-           created_at = EXCLUDED.created_at`,
+           created_at = EXCLUDED.created_at,
+           created_by = COALESCE(companies.created_by, EXCLUDED.created_by)`,
       [
         compId, 
         name, 
@@ -252,7 +257,8 @@ exports.saveCompany = async (req, res) => {
         price || 0,
         sellType || 'pack',
         displayOrder || 0,
-        createdAt || Date.now()
+        createdAt || Date.now(),
+        createdBy || null
       ]
     );
     res.json({ success: true });
@@ -422,7 +428,8 @@ exports.getHierarchyNodes = async (req, res) => {
         is_premium AS "isPremium",
         sell_type AS "sellType",
         display_order AS "displayOrder",
-        created_at AS "createdAt"
+        created_at AS "createdAt",
+        created_by AS "createdBy"
       FROM hierarchy_nodes
     `);
     res.json({ success: true, nodes: result.rows });
@@ -432,14 +439,14 @@ exports.getHierarchyNodes = async (req, res) => {
 };
 
 exports.saveHierarchyNode = async (req, res) => {
-  const { id, name, type, parentId, description, accessType, isPremium, sellType, displayOrder, createdAt } = req.body;
+  const { id, name, type, parentId, description, accessType, isPremium, sellType, displayOrder, createdAt, createdBy } = req.body;
   const nodeId = id || crypto.randomUUID();
   try {
     await pool.query(
       `INSERT INTO hierarchy_nodes (
-        id, name, type, parent_id, description, access_type, is_premium, sell_type, display_order, created_at
+        id, name, type, parent_id, description, access_type, is_premium, sell_type, display_order, created_at, created_by
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (id) DO UPDATE
        SET name = EXCLUDED.name, 
            type = EXCLUDED.type, 
@@ -449,7 +456,8 @@ exports.saveHierarchyNode = async (req, res) => {
            is_premium = EXCLUDED.is_premium,
            sell_type = EXCLUDED.sell_type,
            display_order = EXCLUDED.display_order,
-           created_at = EXCLUDED.created_at`,
+           created_at = EXCLUDED.created_at,
+           created_by = COALESCE(hierarchy_nodes.created_by, EXCLUDED.created_by)`,
       [
         nodeId, 
         name, 
@@ -460,7 +468,8 @@ exports.saveHierarchyNode = async (req, res) => {
         isPremium !== undefined ? isPremium : false, 
         sellType || 'pack', 
         displayOrder || 0,
-        createdAt || Date.now()
+        createdAt || Date.now(),
+        createdBy || null
       ]
     );
     res.json({ success: true });
@@ -914,6 +923,53 @@ exports.getPlans = async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM plans");
     res.json({ success: true, plans: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ================= FEEDBACKS =================
+exports.getFeedbacks = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        id, 
+        user_id AS "userId", 
+        user_name AS "userName", 
+        user_email AS "userEmail", 
+        feedback_type AS "feedbackType", 
+        message, 
+        created_at AS "createdAt"
+      FROM feedbacks 
+      ORDER BY created_at DESC
+    `);
+    res.json({ success: true, feedbacks: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.createFeedback = async (req, res) => {
+  const { id, userId, userName, userEmail, feedbackType, message } = req.body;
+  const feedbackId = id || crypto.randomUUID();
+  try {
+    await pool.query(
+      `INSERT INTO feedbacks (id, user_id, user_name, user_email, feedback_type, message)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO NOTHING`,
+      [feedbackId, userId, userName, userEmail, feedbackType, message]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deleteFeedback = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query("DELETE FROM feedbacks WHERE id = $1", [id]);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

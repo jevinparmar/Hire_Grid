@@ -122,6 +122,7 @@ export function AdminCompaniesTab({
             sellType,
             displayOrder,
             createdAt: existing ? existing.createdAt : Date.now(),
+            createdBy: existing ? (existing.createdBy || null) : userName,
           }),
         ),
       );
@@ -150,6 +151,11 @@ export function AdminCompaniesTab({
   const confirmDelete = async () => {
     if (!deleteId) return;
     const company = companies.find((c) => c.id === deleteId);
+    if (isContentManager && company && company.createdBy && company.createdBy !== userName) {
+      alert("You are not authorized to delete this company. Only the creator or a Super Admin can delete it.");
+      setDeleteId(null);
+      return;
+    }
     try {
       await deleteDoc(doc(db, "companies", deleteId));
       if (isContentManager && company) {
@@ -164,6 +170,10 @@ export function AdminCompaniesTab({
 
   const handleEdit = (c, e) => {
     e.stopPropagation();
+    if (isContentManager && c.createdBy && c.createdBy !== userName) {
+      alert("You are not authorized to edit this company. Only the creator or a Super Admin can edit it.");
+      return;
+    }
     setIsCreating(true);
     setEditingCompanyId(c.id);
     setName(c.name);
@@ -492,6 +502,10 @@ export function AdminCompaniesTab({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (isContentManager && c.createdBy && c.createdBy !== userName) {
+                          alert("You are not authorized to delete this company. Only the creator or a Super Admin can delete it.");
+                          return;
+                        }
                         setDeleteId(c.id);
                       }}
                       className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"

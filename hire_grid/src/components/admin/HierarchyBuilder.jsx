@@ -100,6 +100,9 @@ export function HierarchyBuilder({
         createdAt: editingId
           ? nodes.find((n) => n.id === editingId)?.createdAt || Date.now()
           : Date.now(),
+        createdBy: editingId
+          ? (nodes.find((n) => n.id === editingId)?.createdBy || null)
+          : userName,
       };
       if (isPurchasable) payload.price = price;
       else payload.price = 0;
@@ -130,6 +133,12 @@ export function HierarchyBuilder({
 
   const confirmDelete = async () => {
     if (!deleteNodeInfo) return;
+    const node = nodes.find((n) => n.id === deleteNodeInfo.id);
+    if (isContentManager && node && node.createdBy && node.createdBy !== userName) {
+      alert("You are not authorized to delete this node. Only the creator or a Super Admin can delete it.");
+      setDeleteNodeInfo(null);
+      return;
+    }
     try {
       await deleteDoc(doc(db, "hierarchy_nodes", deleteNodeInfo.id));
       if (isContentManager) {
@@ -453,6 +462,10 @@ export function HierarchyBuilder({
               <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between relative z-20">
                 <button
                   onClick={() => {
+                    if (isContentManager && node.createdBy && node.createdBy !== userName) {
+                      alert("You are not authorized to edit this node. Only the creator or a Super Admin can edit it.");
+                      return;
+                    }
                     setIsCreating(true);
                     setEditingId(node.id);
                     setName(node.name);
@@ -478,9 +491,13 @@ export function HierarchyBuilder({
                   Edit
                 </button>
                 <button
-                  onClick={() =>
+                  onClick={() => {
+                    if (isContentManager && node.createdBy && node.createdBy !== userName) {
+                      alert("You are not authorized to delete this node. Only the creator or a Super Admin can delete it.");
+                      return;
+                    }
                     setDeleteNodeInfo({ id: node.id, name: node.name })
-                  }
+                  }}
                   className="flex items-center text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5 mr-1" />

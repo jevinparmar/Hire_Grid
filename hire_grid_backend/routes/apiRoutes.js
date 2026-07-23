@@ -81,4 +81,9 @@ router.post("/device-requests", dataController.createDeviceRequest);
 // Plans
 router.get("/plans", dataController.getPlans);
 
+// Feedbacks
+router.get("/feedbacks", dataController.getFeedbacks);
+router.post("/feedbacks", dataController.createFeedback);
+router.delete("/feedbacks/:id", dataController.deleteFeedback);
+
 module.exports = router;

@@ -96,7 +96,7 @@ export async function getDoc(docRef) {
 export async function getDocs(queryRef) {
   try {
     const res = await api.get(`/${queryRef.collectionName}`);
-    let items = res.modules || res.companies || res.exams || res.requests || res.nodes || res.notifications || res.branches || res.papers || res.users || res.logs || res.admin_users || [];
+    let items = res.modules || res.companies || res.exams || res.requests || res.nodes || res.notifications || res.branches || res.papers || res.users || res.logs || res.admin_users || res.feedbacks || [];
     
     // Apply basic client-side filtering if where clauses are present
     if (queryRef.clauses) {

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useLocation, Navigate, useNavigate } from "react-router-dom";
-import { ShieldCheck, LogOut, BookOpen, Server } from "lucide-react";
+import { ShieldCheck, LogOut, BookOpen, Server, MessageSquare } from "lucide-react";
 import { ThemeToggle } from "../../components/common/ThemeToggle";
 import { AdminCompaniesTab } from "../../components/admin/AdminCompaniesTab";
 import { HierarchyBuilder } from "../../components/admin/HierarchyBuilder";
+import { AdminFeedbacksTab } from "../../components/admin/AdminFeedbacksTab";
 
 export default function ContentManagerDashboard() {
   const location = useLocation();
@@ -64,13 +65,22 @@ export default function ContentManagerDashboard() {
           <Server className="w-4 h-4" />
           <span>Learning</span>
         </button>
+        <button
+          onClick={() => setActiveTab("feedbacks")}
+          className={`flex items-center space-x-2 pb-2 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === "feedbacks" ? "border-indigo-500 text-indigo-600 dark:text-indigo-400" : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"}`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Feedbacks</span>
+        </button>
       </div>
 
       <main className="max-w-7xl mx-auto pb-10 px-4 sm:px-6 lg:px-8">
         {activeTab === "company-modules" ? (
           <AdminCompaniesTab isContentManager={true} userName={userName} />
-        ) : (
+        ) : activeTab === "general-modules" ? (
           <HierarchyBuilder isContentManager={true} userName={userName} />
+        ) : (
+          <AdminFeedbacksTab isContentManager={true} />
         )}
       </main>
     </div>

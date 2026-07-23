@@ -846,6 +846,10 @@ export function AdminModulesTab({
   };
 
   const handleEditModule = (m) => {
+    if (isContentManager && m.createdBy && m.createdBy !== userName) {
+      alert("You are not authorized to edit this module. Only the creator or a Super Admin can edit it.");
+      return;
+    }
     if (m.isMaster) {
       setIsCreatingMaster(true);
       setIsCreating(false);
