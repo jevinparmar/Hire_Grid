@@ -844,7 +844,7 @@ export default function StudentDashboard() {
       {/* Sidebar */}
       <div
         className={`bg-white/95 dark:bg-[#0B1528] border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 z-50 shrink-0
-        fixed md:sticky md:top-0 left-0 h-screen shadow-xl
+        fixed md:sticky md:top-0 left-0 inset-y-0 md:h-screen shadow-xl
         ${sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0 w-72 md:w-20"}`}
       >
         {/* Sidebar Header */}
