@@ -82,7 +82,7 @@ const createDocSnap = (id, data) => ({
 });
 
 const memoryCache = new Map();
-const CACHE_TTL = 30000; // 30 seconds cache TTL
+const CACHE_TTL = 300000; // 5 minutes cache TTL
 
 function getCache(key) {
   const cached = memoryCache.get(key);
