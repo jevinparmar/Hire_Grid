@@ -863,32 +863,32 @@ export default function StudentDashboard() {
 
       {/* Sidebar */}
       <div
-        className={`bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border-r border-emerald-500/20 flex flex-col transition-all duration-300 z-50 shrink-0
-        fixed md:relative inset-y-0 left-0 h-full
+        className={`bg-white/95 dark:bg-[#0B1528] border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 z-50 shrink-0
+        fixed md:relative inset-y-0 left-0 h-full shadow-xl
         ${sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0 w-72 md:w-20"}`}
       >
         {/* Sidebar Header */}
-        <div className="h-16 flex items-center px-4 border-b border-emerald-500/20 shrink-0">
+        <div className="h-20 flex items-center px-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <div
             className={`flex items-center flex-1 ${!sidebarOpen ? "hidden md:flex md:w-0 md:opacity-0 md:overflow-hidden" : ""}`}
           >
-            <div className="shrink-0 w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold shadow-[0_0_10px_rgba(4,120,87,0.8)] border border-emerald-400">
-              <Zap className="w-5 h-5 text-lime-300" />
+            <div className="shrink-0 w-9 h-9 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-xl flex items-center justify-center text-white font-bold shadow-[0_0_15px_rgba(16,185,129,0.45)] border border-emerald-400/30">
+              <Zap className="w-5 h-5 text-lime-300 animate-pulse" />
             </div>
-            <span className="ml-3 text-[15px] font-black uppercase tracking-widest eng-gradient-text transition-colors drop-shadow-md whitespace-nowrap">
+            <span className="ml-3 text-[16px] font-black uppercase tracking-widest bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent transition-colors drop-shadow-md whitespace-nowrap">
               Command
             </span>
           </div>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className={`shrink-0 p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${!sidebarOpen ? "mx-auto" : ""}`}
+            className={`shrink-0 p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-transparent dark:hover:border-slate-700/50 ${!sidebarOpen ? "mx-auto" : ""}`}
           >
             <Menu className="w-5 h-5 pointer-events-auto" />
           </button>
         </div>
 
         {/* Sidebar Nav */}
-        <div className="flex-1 overflow-y-auto py-4 px-3 space-y-2 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto py-6 px-4 space-y-3 custom-scrollbar">
           <SidebarItem
             icon={<BookOpen />}
             label="Learning"
@@ -921,10 +921,14 @@ export default function StudentDashboard() {
         </div>
 
         {/* User Profile */}
-        <div className="p-4 border-t border-emerald-500/20 shrink-0">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 shrink-0">
           <button
             onClick={() => handleNavClick("profile")}
-            className={`w-full flex items-center py-2.5 rounded-xl text-sm font-medium transition-all group ${activeTab === "profile" ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 shadow-sm border border-emerald-500/30" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border-transparent"} ${!sidebarOpen ? "justify-center px-0" : "px-4"}`}
+            className={`w-full flex items-center py-3 rounded-2xl text-sm font-semibold transition-all duration-200 group border
+              ${activeTab === "profile" 
+                ? "bg-gradient-to-r from-emerald-500/15 to-teal-500/5 dark:from-emerald-500/20 dark:to-teal-500/5 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 shadow-md shadow-emerald-500/5" 
+                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 border-transparent"} 
+              ${!sidebarOpen ? "justify-center px-0" : "px-4"}`}
             title={!sidebarOpen ? "Operator Profile" : undefined}
           >
             <span
@@ -933,7 +937,7 @@ export default function StudentDashboard() {
               <User className="w-5 h-5" />
             </span>
             <span
-              className={`ml-3 font-semibold whitespace-nowrap ${!sidebarOpen && "hidden"}`}
+              className={`ml-3 transition-opacity duration-200 ${!sidebarOpen ? "w-0 opacity-0 overflow-hidden" : "opacity-100"}`}
             >
               Operator Profile
             </span>
@@ -2206,15 +2210,29 @@ export function SidebarItem({ icon, label, active, onClick, isOpen }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center py-2.5 rounded-xl text-sm font-medium transition-all group ${active ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 shadow-sm border border-emerald-500/30" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border-transparent"} ${!isOpen ? "justify-center px-0" : "px-4"}`}
+      className={`w-full flex items-center py-3 rounded-xl text-sm font-semibold transition-all duration-200 relative group
+        ${active 
+          ? "bg-gradient-to-r from-emerald-500/15 to-teal-500/5 dark:from-emerald-500/20 dark:to-teal-500/5 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shadow-lg shadow-emerald-500/5" 
+          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 border border-transparent"} 
+        ${!isOpen ? "justify-center px-0" : "px-4"}`}
       title={!isOpen ? label : undefined}
     >
+      {/* Active Left Indicator Bar */}
+      {active && (
+        <span className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-emerald-500 rounded-r-md" />
+      )}
+      
       <span
-        className={`${active ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300"}`}
+        className={`transition-colors duration-200 ${
+          active 
+            ? "text-emerald-600 dark:text-emerald-400" 
+            : "text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200"
+        }`}
       >
-        {React.cloneElement(icon, { className: "w-4 h-4" })}
+        {React.cloneElement(icon, { className: "w-5 h-5" })}
       </span>
-      <span className={`ml-3 whitespace-nowrap ${!isOpen && "hidden"}`}>
+      
+      <span className={`ml-3 transition-opacity duration-200 ${!isOpen ? "w-0 opacity-0 overflow-hidden" : "opacity-100"}`}>
         {label}
       </span>
     </button>
