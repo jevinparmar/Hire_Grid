@@ -81,29 +81,56 @@ const createDocSnap = (id, data) => ({
   data: () => data,
 });
 
-const memoryCache = new Map();
 const CACHE_TTL = 300000; // 5 minutes cache TTL
 
 function getCache(key) {
-  const cached = memoryCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
+  try {
+    const raw = localStorage.getItem(`cache_${key}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && Date.now() - parsed.timestamp < CACHE_TTL) {
+      return parsed.data;
+    }
+    localStorage.removeItem(`cache_${key}`);
+  } catch (e) {
+    console.error("Cache read failed", e);
   }
   return null;
 }
 
 function setCache(key, data) {
-  memoryCache.set(key, {
-    timestamp: Date.now(),
-    data,
-  });
+  try {
+    localStorage.setItem(`cache_${key}`, JSON.stringify({
+      timestamp: Date.now(),
+      data,
+    }));
+  } catch (e) {
+    console.error("Cache write failed", e);
+  }
 }
 
 function invalidateCache(collectionName) {
-  for (const key of memoryCache.keys()) {
-    if (key === collectionName || key.startsWith(`${collectionName}?`) || key.startsWith(`/${collectionName}`)) {
-      memoryCache.delete(key);
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("cache_")) {
+        const queryKey = key.replace("cache_", "");
+        if (
+          queryKey === collectionName ||
+          queryKey.startsWith(`${collectionName}?`) ||
+          queryKey.startsWith(`/${collectionName}`) ||
+          queryKey.includes(`/${collectionName}/`)
+        ) {
+          keysToRemove.push(key);
+        }
+      }
     }
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key);
+    }
+  } catch (e) {
+    console.error("Cache invalidation failed", e);
   }
 }
 
