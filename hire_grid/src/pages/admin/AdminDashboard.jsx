@@ -10,12 +10,14 @@ import {
   Menu,
   ChevronRight,
   MessageSquare,
+  CreditCard,
 } from "lucide-react";
 import { AdminUsersTab } from "../../components/admin/AdminUsersTab";
 import { AdminSettingsTab } from "../../components/admin/AdminSettingsTab";
 import { AdminPaymentRequestsTab } from "../../components/admin/AdminPaymentRequestsTab";
 import { AdminDeviceRequestsTab } from "../../components/admin/AdminDeviceRequestsTab";
 import { AdminFeedbacksTab } from "../../components/admin/AdminFeedbacksTab";
+import { AdminPlansTab } from "../../components/admin/AdminPlansTab";
 
 export default function AdminDashboard() {
   const location = useLocation();
@@ -135,6 +137,13 @@ export default function AdminDashboard() {
             onClick={() => setView("system", "feedbacks")}
             isOpen={sidebarOpen}
           />
+          <SidebarItem
+            icon={<CreditCard />}
+            label="Plan Management"
+            active={activeWorkspace === "system" && activeSubTab === "plans"}
+            onClick={() => setView("system", "plans")}
+            isOpen={sidebarOpen}
+          />
         </div>
 
         {/* User Profile */}
@@ -220,6 +229,9 @@ export default function AdminDashboard() {
               )}
               {activeWorkspace === "system" && activeSubTab === "feedbacks" && (
                 <AdminFeedbacksTab isContentManager={false} />
+              )}
+              {activeWorkspace === "system" && activeSubTab === "plans" && (
+                <AdminPlansTab userName={userName} />
               )}
             </div>
           </div>

@@ -1116,3 +1116,88 @@ exports.getModuleQuestions = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ================= PLANS =================
+exports.getPlans = async (req, res) => {
+  try {
+    const baseQuery = `
+      SELECT 
+        id, 
+        name, 
+        price, 
+        duration, 
+        duration_days AS "durationDays", 
+        is_active AS "isActive", 
+        is_freemium AS "isFreemium", 
+        learning_content AS "learningContent", 
+        company_modules AS "companyModules", 
+        free_demo_modules AS "freeDemoModules", 
+        created_at AS "createdAt"
+      FROM plans
+    `;
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'created_at DESC');
+    const result = await pool.query(sql, values);
+    res.json({ success: true, plans: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.savePlan = async (req, res) => {
+  const {
+    id,
+    name,
+    price,
+    duration,
+    durationDays,
+    isActive,
+    isFreemium,
+    learningContent,
+    companyModules,
+    freeDemoModules,
+  } = req.body;
+  const planId = id || crypto.randomUUID();
+  try {
+    await pool.query(
+      `INSERT INTO plans (
+        id, name, price, duration, duration_days, is_active, is_freemium, learning_content, company_modules, free_demo_modules
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (id) DO UPDATE
+       SET name = EXCLUDED.name,
+           price = EXCLUDED.price,
+           duration = EXCLUDED.duration,
+           duration_days = EXCLUDED.duration_days,
+           is_active = EXCLUDED.is_active,
+           is_freemium = EXCLUDED.is_freemium,
+           learning_content = EXCLUDED.learning_content,
+           company_modules = EXCLUDED.company_modules,
+           free_demo_modules = EXCLUDED.free_demo_modules`,
+      [
+        planId,
+        name,
+        price,
+        duration || 'free',
+        durationDays !== undefined ? durationDays : null,
+        isActive !== undefined ? isActive : true,
+        isFreemium !== undefined ? isFreemium : false,
+        JSON.stringify(learningContent || []),
+        JSON.stringify(companyModules || []),
+        JSON.stringify(freeDemoModules || []),
+      ]
+    );
+    res.json({ success: true, plan: { id: planId } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deletePlan = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query("DELETE FROM plans WHERE id = $1", [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

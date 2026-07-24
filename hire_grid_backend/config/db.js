@@ -326,6 +326,15 @@ async function initDb() {
       ALTER TABLE companies ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
       ALTER TABLE modules ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
       ALTER TABLE hierarchy_nodes ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+
+      -- Plans additions
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS duration VARCHAR(50) DEFAULT 'free';
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS is_freemium BOOLEAN DEFAULT FALSE;
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS learning_content JSONB DEFAULT '[]';
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS company_modules JSONB DEFAULT '[]';
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS free_demo_modules JSONB DEFAULT '[]';
+      ALTER TABLE plans ALTER COLUMN duration_days DROP NOT NULL;
       
       -- Modules column additions
       ALTER TABLE modules ADD COLUMN IF NOT EXISTS description TEXT;

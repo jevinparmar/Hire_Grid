@@ -47,6 +47,11 @@ router.delete("/exams/:id", dataController.deleteExam);
 router.get("/settings/:id", dataController.getSettings);
 router.post("/settings/:id", dataController.saveSettings);
 
+// Plans
+router.get("/plans", dataController.getPlans);
+router.post("/plans", dataController.savePlan);
+router.delete("/plans/:id", dataController.deletePlan);
+
 // Payment Requests
 router.get("/payment-requests", dataController.getPaymentRequests);
 router.post("/payment-requests", dataController.createPaymentRequest);
