@@ -334,6 +334,7 @@ async function initDb() {
       ALTER TABLE plans ADD COLUMN IF NOT EXISTS learning_content JSONB DEFAULT '[]';
       ALTER TABLE plans ADD COLUMN IF NOT EXISTS company_modules JSONB DEFAULT '[]';
       ALTER TABLE plans ADD COLUMN IF NOT EXISTS free_demo_modules JSONB DEFAULT '[]';
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
       ALTER TABLE plans ALTER COLUMN duration_days DROP NOT NULL;
       
       -- Modules column additions
