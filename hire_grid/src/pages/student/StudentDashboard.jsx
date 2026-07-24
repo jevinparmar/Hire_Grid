@@ -33,7 +33,6 @@ import { api } from "../../lib/api";
 import { OperationType, auth, collection, db, doc, getDocs, handleFirestoreError, limit, logOut, onSnapshot, orderBy, query, setDoc, where, writeBatch } from "../../firebase";
 
 import { MathText } from "../../components/common/MathText";
-import { DashboardLoader } from "../../components/common/DashboardLoader";
 
 export default function StudentDashboard() {
   const location = useLocation();
@@ -43,8 +42,6 @@ export default function StudentDashboard() {
     name: auth.currentUser?.displayName || "",
     role: "student",
   };
-
-  const [loadingComplete, setLoadingComplete] = useState(false);
 
   if (!auth.currentUser) {
     return <Navigate to="/" replace />;
@@ -841,10 +838,6 @@ export default function StudentDashboard() {
         </div>
       </div>
     );
-  }
-
-  if (!loadingComplete) {
-    return <DashboardLoader onComplete={() => setLoadingComplete(true)} />;
   }
 
   return (
