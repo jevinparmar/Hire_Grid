@@ -162,7 +162,7 @@ export async function getDocs(queryRef) {
     }
 
     const res = await api.get(url);
-    let items = res.modules || res.companies || res.exams || res.requests || res.nodes || res.notifications || res.branches || res.papers || res.users || res.logs || res.admin_users || res.feedbacks || [];
+    let items = res.modules || res.companies || res.exams || res.requests || res.nodes || res.notifications || res.branches || res.papers || res.users || res.logs || res.admin_users || res.feedbacks || res.plans || [];
     
     // Fallback: keep client-side filters to avoid any schema mapping mismatches
     if (queryRef.clauses) {

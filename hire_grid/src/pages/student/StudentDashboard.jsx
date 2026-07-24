@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Lock,
   MessageSquare,
+  CreditCard,
 } from "lucide-react";
 import { ThemeToggle } from "../../components/common/ThemeToggle";
 import { PremiumPurchaseView } from "../../components/student/PremiumPurchaseView";
@@ -49,6 +50,7 @@ export default function StudentDashboard() {
   const [modules, setModules] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [exams, setExams] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [activeModule, setActiveModule] = useState(null);
   const [activeMasterModule, setActiveMasterModule] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -423,6 +425,15 @@ export default function StudentDashboard() {
       (error) => handleFirestoreError(error, OperationType.LIST, "exams"),
     );
 
+    // Subscribe to plans
+    const unsubPlans = onSnapshot(
+      collection(db, "plans"),
+      (snapshot) => {
+        setPlans(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      },
+      (error) => handleFirestoreError(error, OperationType.LIST, "plans"),
+    );
+
     // Subscribe to user stats
     const unsubUser = onSnapshot(
       doc(db, "users", auth.currentUser.uid),
@@ -457,6 +468,7 @@ export default function StudentDashboard() {
       unsubMods();
       unsubCompanies();
       unsubExams();
+      unsubPlans();
       unsubUser();
     };
   }, [auth.currentUser?.uid]);
@@ -898,6 +910,16 @@ export default function StudentDashboard() {
             onClick={() => handleNavClick("feedback")}
             isOpen={sidebarOpen}
           />
+
+          <SidebarItem
+            icon={<CreditCard />}
+            label="Premium Plans"
+            active={
+              activeTab === "plans" && !activeModule && !activeMasterModule
+            }
+            onClick={() => handleNavClick("plans")}
+            isOpen={sidebarOpen}
+          />
         </div>
 
         {/* User Profile */}
@@ -1219,6 +1241,76 @@ export default function StudentDashboard() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {activeTab === "plans" && (
+                  <div className="max-w-6xl mx-auto space-y-6">
+                    {purchaseItem?.type === "plan" ? (
+                      <PremiumPurchaseView
+                        itemId={purchaseItem.item.id}
+                        itemName={purchaseItem.item.name}
+                        itemType="plan"
+                        price={purchaseItem.item.price}
+                        durationMonths={
+                          purchaseItem.item.duration === "1_month" ? 1 :
+                          purchaseItem.item.duration === "3_months" ? 3 :
+                          purchaseItem.item.duration === "6_months" ? 6 :
+                          purchaseItem.item.duration === "9_months" ? 9 :
+                          purchaseItem.item.duration === "12_months" ? 12 :
+                          purchaseItem.item.duration === "lifetime" ? 999 : 1
+                        }
+                        onBack={() => setPurchaseItem(null)}
+                        currentUser={currentUserDoc}
+                      />
+                    ) : (
+                      <div className="glass-panel rounded-2xl shadow-sm border border-emerald-500/20 p-6 sm:p-8 transition-colors">
+                        <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 mb-6 flex items-center transition-colors">
+                          <CreditCard className="h-7 w-7 mr-3 text-emerald-800 dark:text-lime-400" />
+                          Premium Membership Plans
+                        </h4>
+                        
+                        {plans.filter(p => p.isActive).length === 0 ? (
+                          <div className="text-center py-16 text-slate-500">
+                            No active plans available at the moment.
+                          </div>
+                        ) : (
+                          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {plans.filter(p => p.isActive).map((plan) => (
+                              <div
+                                key={plan.id}
+                                className="bg-[#0B1528] rounded-2xl p-6 shadow-sm border border-slate-800 flex flex-col justify-between hover:-translate-y-1 hover:shadow-lg transition-all"
+                              >
+                                <div className="space-y-4">
+                                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                                    {plan.name}
+                                  </h3>
+                                  <p className="text-xs text-slate-500 uppercase tracking-wider font-mono">
+                                    {plan.duration.replace("_", " ")}
+                                  </p>
+                                  <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
+                                    ₹{plan.price || 0}
+                                  </div>
+                                  
+                                  <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-2 pt-2 border-t border-slate-800">
+                                    <li>✓ {(plan.learningContent || []).length} Learning Entitlements</li>
+                                    <li>✓ {(plan.companyModules || []).length} Company Prep Modules</li>
+                                    <li>✓ {(plan.freeDemoModules || []).length} Free Demo tests</li>
+                                  </ul>
+                                </div>
+                                
+                                <button
+                                  onClick={() => setPurchaseItem({ item: plan, type: "plan" })}
+                                  className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all shadow-md shadow-emerald-600/10"
+                                >
+                                  Subscribe Now
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
