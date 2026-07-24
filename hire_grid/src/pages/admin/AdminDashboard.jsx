@@ -18,6 +18,7 @@ import { AdminPaymentRequestsTab } from "../../components/admin/AdminPaymentRequ
 import { AdminDeviceRequestsTab } from "../../components/admin/AdminDeviceRequestsTab";
 import { AdminFeedbacksTab } from "../../components/admin/AdminFeedbacksTab";
 import { AdminPlansTab } from "../../components/admin/AdminPlansTab";
+import { DashboardLoader } from "../../components/common/DashboardLoader";
 
 export default function AdminDashboard() {
   const location = useLocation();
@@ -25,6 +26,7 @@ export default function AdminDashboard() {
   const role = location.state?.role;
   const userName = location.state?.name || "Admin";
 
+  const [loadingComplete, setLoadingComplete] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState("premium");
   const [activeSubTab, setActiveSubTab] = useState("requests");
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -58,6 +60,10 @@ export default function AdminDashboard() {
       setSidebarOpen(false);
     }
   };
+
+  if (!loadingComplete) {
+    return <DashboardLoader onComplete={() => setLoadingComplete(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] font-sans text-slate-900 dark:text-slate-100 flex overflow-hidden">

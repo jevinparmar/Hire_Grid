@@ -4,6 +4,7 @@ import { ShieldCheck, LogOut, BookOpen, Server, MessageSquare } from "lucide-rea
 import { AdminCompaniesTab } from "../../components/admin/AdminCompaniesTab";
 import { HierarchyBuilder } from "../../components/admin/HierarchyBuilder";
 import { AdminFeedbacksTab } from "../../components/admin/AdminFeedbacksTab";
+import { DashboardLoader } from "../../components/common/DashboardLoader";
 
 export default function ContentManagerDashboard() {
   const location = useLocation();
@@ -11,6 +12,7 @@ export default function ContentManagerDashboard() {
   const role = location.state?.role;
   const userName = location.state?.name || "Content Manager";
 
+  const [loadingComplete, setLoadingComplete] = useState(false);
   const [activeTab, setActiveTab] = useState("company-modules");
 
   if (role !== "content_manager") {
@@ -20,6 +22,10 @@ export default function ContentManagerDashboard() {
   const handleLogout = () => {
     navigate("/");
   };
+
+  if (!loadingComplete) {
+    return <DashboardLoader onComplete={() => setLoadingComplete(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-300 transition-colors">
