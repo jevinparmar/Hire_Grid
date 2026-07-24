@@ -312,7 +312,17 @@ async function initDb() {
       console.log("Database tables already exist. Running schema verification and migrations...");
     }
 
-    await pool.query(`
+     await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_questions_module_id ON questions(module_id);
+      CREATE INDEX IF NOT EXISTS idx_modules_module_type ON modules(module_type);
+      CREATE INDEX IF NOT EXISTS idx_modules_parent_id ON modules(parent_id);
+      CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
+      CREATE INDEX IF NOT EXISTS idx_scores_module_id ON scores(module_id);
+      CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_id ON hierarchy_nodes(parent_id);
+      CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_type ON hierarchy_nodes(type);
+      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+      CREATE INDEX IF NOT EXISTS idx_plans_is_active ON plans(is_active);
+
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS item_type VARCHAR(100) DEFAULT 'full_premium';
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS item_id VARCHAR(255);
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS duration INTEGER DEFAULT 12;
