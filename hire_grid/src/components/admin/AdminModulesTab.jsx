@@ -145,8 +145,7 @@ export function AdminModulesTab({
         }
 
         let parsedOptions = q.options || [];
-        let correctIdx =
-          typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : 0;
+        let correctIdx = 0;
 
         if (
           q.options &&
@@ -155,9 +154,33 @@ export function AdminModulesTab({
         ) {
           const keys = Object.keys(q.options).sort();
           parsedOptions = keys.map((k) => q.options[k]);
-          const correctKey = q.correct_answer || "A";
+          const correctKey = q.correct_answer || q.correctAnswer || "A";
           correctIdx =
             keys.indexOf(correctKey) >= 0 ? keys.indexOf(correctKey) : 0;
+        } else if (Array.isArray(q.options)) {
+          parsedOptions = q.options;
+          if (typeof q.correctAnswerIndex === "number") {
+            correctIdx = q.correctAnswerIndex;
+          } else if (typeof q.correct_answer_index === "number") {
+            correctIdx = q.correct_answer_index;
+          } else if (typeof q.answer === "number") {
+            correctIdx = q.answer;
+          } else if (q.correct_answer !== undefined || q.correctAnswer !== undefined) {
+            const ansVal = String(q.correct_answer !== undefined ? q.correct_answer : q.correctAnswer).trim();
+            if (/^\d+$/.test(ansVal)) {
+              correctIdx = parseInt(ansVal, 10);
+            } else {
+              const letter = ansVal.toUpperCase();
+              if (letter === "A" || letter.startsWith("A")) correctIdx = 0;
+              else if (letter === "B" || letter.startsWith("B")) correctIdx = 1;
+              else if (letter === "C" || letter.startsWith("C")) correctIdx = 2;
+              else if (letter === "D" || letter.startsWith("D")) correctIdx = 3;
+              else {
+                const optIdx = parsedOptions.findIndex(opt => String(opt).includes(ansVal) || ansVal.includes(String(opt)));
+                correctIdx = optIdx >= 0 ? optIdx : 0;
+              }
+            }
+          }
         }
 
         if (q.option_svg_ids) {
@@ -172,7 +195,7 @@ export function AdminModulesTab({
               ? q.options[k]
               : `[Missing SVG: ${svgId}]`;
           });
-          const correctKey = q.correct_answer || "A";
+          const correctKey = q.correct_answer || q.correctAnswer || "A";
           correctIdx =
             keys.indexOf(correctKey) >= 0
               ? keys.indexOf(correctKey)
@@ -546,16 +569,32 @@ export function AdminModulesTab({
         if (q.options) {
           if (Array.isArray(q.options)) {
             parsedOptions = q.options;
-            correctIdx =
-              typeof q.correctAnswerIndex === "number"
-                ? q.correctAnswerIndex
-                : typeof q.answer === "number"
-                  ? q.answer
-                  : 0;
+            if (typeof q.correctAnswerIndex === "number") {
+              correctIdx = q.correctAnswerIndex;
+            } else if (typeof q.correct_answer_index === "number") {
+              correctIdx = q.correct_answer_index;
+            } else if (typeof q.answer === "number") {
+              correctIdx = q.answer;
+            } else if (q.correct_answer !== undefined || q.correctAnswer !== undefined) {
+              const ansVal = String(q.correct_answer !== undefined ? q.correct_answer : q.correctAnswer).trim();
+              if (/^\d+$/.test(ansVal)) {
+                correctIdx = parseInt(ansVal, 10);
+              } else {
+                const letter = ansVal.toUpperCase();
+                if (letter === "A" || letter.startsWith("A")) correctIdx = 0;
+                else if (letter === "B" || letter.startsWith("B")) correctIdx = 1;
+                else if (letter === "C" || letter.startsWith("C")) correctIdx = 2;
+                else if (letter === "D" || letter.startsWith("D")) correctIdx = 3;
+                else {
+                  const optIdx = parsedOptions.findIndex(opt => String(opt).includes(ansVal) || ansVal.includes(String(opt)));
+                  correctIdx = optIdx >= 0 ? optIdx : 0;
+                }
+              }
+            }
           } else if (typeof q.options === "object") {
             const keys = Object.keys(q.options).sort(); // usually A, B, C, D
             parsedOptions = keys.map((k) => q.options[k]);
-            const correctKey = q.correct_answer || "A";
+            const correctKey = q.correct_answer || q.correctAnswer || "A";
             correctIdx =
               keys.indexOf(correctKey) >= 0 ? keys.indexOf(correctKey) : 0;
           }
@@ -573,7 +612,7 @@ export function AdminModulesTab({
               ? q.options[k]
               : `[Missing SVG: ${svgId}]`;
           });
-          const correctKey = q.correct_answer || "A";
+          const correctKey = q.correct_answer || q.correctAnswer || "A";
           correctIdx =
             keys.indexOf(correctKey) >= 0
               ? keys.indexOf(correctKey)
