@@ -736,6 +736,14 @@ export function AdminModulesTab({
     }
   };
 
+  const handleDeletePendingQuestion = (index) => {
+    const updated = pendingImportQuestions.filter((_, idx) => idx !== index);
+    setPendingImportQuestions(updated);
+    if (updated.length === 0) {
+      setIsImportPreviewOpen(false);
+    }
+  };
+
   const handleConfirmImport = () => {
     setParsedQuestions((prev) => [...prev, ...pendingImportQuestions]);
     setPendingImportQuestions([]);
@@ -2219,9 +2227,11 @@ Please generate the requested JSON now.`;
                   className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
-                      Question {qIdx + 1} of {pendingImportQuestions.length}
-                    </span>
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
+                        Question {qIdx + 1} of {pendingImportQuestions.length}
+                      </span>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {q.difficulty && (
                         <span
@@ -2246,6 +2256,14 @@ Please generate the requested JSON now.`;
                           {q.subTopic}
                         </span>
                       )}
+                      <button
+                        onClick={() => handleDeletePendingQuestion(qIdx)}
+                        className="p-1 px-2 text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 dark:text-rose-300 rounded-lg transition-colors flex items-center space-x-1 text-xs font-bold border border-rose-200 dark:border-rose-800/50 ml-2"
+                        title="Delete this question from import"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
                     </div>
                   </div>
 
