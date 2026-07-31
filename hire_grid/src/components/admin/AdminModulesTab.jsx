@@ -11,6 +11,7 @@ import {
   Clock,
   Target,
   Edit,
+  AlertTriangle,
 } from "lucide-react";
 import { OperationType, collection, db, deleteDoc, doc, getDocs, handleFirestoreError, limit, onSnapshot, query, setDoc, where } from "../../firebase";
 import { api } from "../../lib/api";
@@ -1701,6 +1702,22 @@ Please generate the requested JSON now.`;
 ]`}
                   </pre>
                 </div>
+
+                {error && (
+                  <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl space-y-1.5 my-3 text-rose-800 dark:text-rose-200 animate-in fade-in duration-150 shadow-sm">
+                    <div className="flex items-center space-x-2 font-bold text-sm text-rose-700 dark:text-rose-300">
+                      <AlertTriangle className="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400" />
+                      <span>Format Error Detected</span>
+                    </div>
+                    <p className="text-xs leading-relaxed font-mono whitespace-pre-wrap pl-7">
+                      {error}
+                    </p>
+                    <div className="pl-7 pt-1 text-[11px] text-rose-600 dark:text-rose-400 font-medium">
+                      💡 Tip: Please check the highlighted question number or JSON formatting above and fix the issue before importing.
+                    </div>
+                  </div>
+                )}
+
                 <textarea
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
