@@ -43,10 +43,6 @@ export default function StudentDashboard() {
     role: "student",
   };
 
-  if (!auth.currentUser) {
-    return <Navigate to="/" replace />;
-  }
-
   const [modules, setModules] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [exams, setExams] = useState([]);
@@ -692,6 +688,17 @@ export default function StudentDashboard() {
       }
 
       await batch.commit();
+
+      await api.post("/scores", {
+        moduleId: activeModule.id,
+        score: finalScore,
+        totalQuestions: activeModule.questions.length,
+        correctAnswers: correctCount,
+        accuracy,
+        percentage,
+        answers,
+        createdAt: Date.now(),
+      }).catch((err) => console.error("API score submit error:", err));
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, "scores/users");
     }
@@ -823,17 +830,33 @@ export default function StudentDashboard() {
           </p>
           <div className="space-y-4">
             <button
+              onClick={async () => {
+                try {
+                  const deviceId = localStorage.getItem("hiregrid_device_id") || "dev_" + Math.random().toString(36).substring(2);
+                  await api.post("/device-requests", {
+                    userName: currentUserDoc?.name || auth.currentUser?.email || "Student",
+                    userEmail: currentUserDoc?.email || auth.currentUser?.email,
+                    deviceId,
+                    deviceName: navigator.userAgent.includes("Mobile") ? "Mobile Browser" : "Desktop Browser",
+                  });
+                  alert("Permission request sent to Super Admin! You will be notified once approved.");
+                } catch (err) {
+                  alert("Request failed: " + (err.message || "Error submitting request."));
+                }
+              }}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center justify-center space-x-2"
+            >
+              <span>Request Multi-Device Permission</span>
+            </button>
+            <button
               onClick={() => {
                 logOut();
                 navigate("/");
               }}
-              className="w-full py-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl uppercase tracking-widest transition-colors"
+              className="w-full py-3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl uppercase tracking-widest transition-colors"
             >
               Sign Out
             </button>
-            <p className="text-xs text-amber-600/80 dark:text-amber-500/80 font-bold uppercase tracking-wider">
-              Please sign in again to request a device change.
-            </p>
           </div>
         </div>
       </div>
