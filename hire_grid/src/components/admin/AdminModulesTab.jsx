@@ -50,6 +50,8 @@ export function AdminModulesTab({
   const [rawText, setRawText] = useState("");
   const [isParsing, setIsParsing] = useState(false);
   const [parsedQuestions, setParsedQuestions] = useState([]);
+  const [pendingImportQuestions, setPendingImportQuestions] = useState([]);
+  const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
   const [error, setError] = useState("");
 
   // New state for Question Adding Modes
@@ -359,7 +361,12 @@ export function AdminModulesTab({
   };
 
   const handleParseJSON = () => {
+    setError("");
     try {
+      if (!rawText || !rawText.trim()) {
+        throw new Error("JSON text is empty. Please paste a valid JSON array of questions.");
+      }
+
       let parsed = null;
 
       // Sanitize JSON string to fix common unescaped LaTeX backslashes from AI
@@ -504,9 +511,7 @@ export function AdminModulesTab({
         const actualEnd = Math.max(endIdx, endObjIdx);
 
         if (actualStart === -1 || actualEnd === -1) {
-          throw new Error(
-            "Could not find a valid JSON object or array in the text.",
-          );
+          throw new Error("Could not find a valid JSON object or array in the text.");
         }
 
         const jsonStr = sanitizedText.substring(actualStart, actualEnd + 1);
@@ -536,11 +541,10 @@ export function AdminModulesTab({
               jsStr = sanitizedText.substring(actualStart, actualEnd + 1);
             }
           }
-          // Safely evaluate the JS string
           parsed = new Function(`return ${jsStr}`)();
         } catch (evalErr) {
           throw new Error(
-            "Failed to parse JSON and JS object literal: " + evalErr.message,
+            "Syntax Error: Invalid JSON or JS object format. Please check for missing quotes, brackets, or commas.\nDetails: " + evalErr.message,
           );
         }
       }
@@ -557,7 +561,7 @@ export function AdminModulesTab({
         });
       }
 
-      // Check if it's the new nested module format
+      // Check format
       if (
         parsed.module &&
         parsed.module.questions &&
@@ -570,15 +574,11 @@ export function AdminModulesTab({
           setTitle(titleStr.trim());
         }
         qs = parsed.module.questions;
-      }
-      // If it's the old full module object
-      else if (parsed.questions && Array.isArray(parsed.questions)) {
+      } else if (parsed.questions && Array.isArray(parsed.questions)) {
         if (parsed.title) setTitle(parsed.title);
         if (parsed.description) setDescription(parsed.description);
         qs = parsed.questions;
-      }
-      // Array of questions
-      else if (Array.isArray(parsed)) {
+      } else if (Array.isArray(parsed)) {
         qs = parsed;
       } else if (
         typeof parsed === "object" &&
@@ -587,49 +587,33 @@ export function AdminModulesTab({
       ) {
         qs = [parsed];
       } else {
-        throw new Error("Invalid format. Cannot find 'questions' array.");
+        throw new Error("Invalid structure: Could not find an array of questions in the JSON.");
       }
 
-      const formattedQs = qs.map((q) => {
-        // Handle options obj (e.g. {"A": "...", "B": "..."}) or array
-        let parsedOptions = ["Option A", "Option B", "Option C", "Option D"];
-        let correctIdx = 0;
+      if (qs.length === 0) {
+        throw new Error("The question array is empty. Please provide at least one question.");
+      }
 
-        if (q.options) {
-          if (Array.isArray(q.options)) {
-            parsedOptions = q.options;
-            if (typeof q.correctAnswerIndex === "number") {
-              correctIdx = q.correctAnswerIndex;
-            } else if (typeof q.correct_answer_index === "number") {
-              correctIdx = q.correct_answer_index;
-            } else if (typeof q.answer === "number") {
-              correctIdx = q.answer;
-            } else if (q.correct_answer !== undefined || q.correctAnswer !== undefined) {
-              const ansVal = String(q.correct_answer !== undefined ? q.correct_answer : q.correctAnswer).trim();
-              if (/^\d+$/.test(ansVal)) {
-                correctIdx = parseInt(ansVal, 10);
-              } else {
-                const letter = ansVal.toUpperCase();
-                if (letter === "A" || letter.startsWith("A")) correctIdx = 0;
-                else if (letter === "B" || letter.startsWith("B")) correctIdx = 1;
-                else if (letter === "C" || letter.startsWith("C")) correctIdx = 2;
-                else if (letter === "D" || letter.startsWith("D")) correctIdx = 3;
-                else {
-                  const optIdx = parsedOptions.findIndex(opt => String(opt).includes(ansVal) || ansVal.includes(String(opt)));
-                  correctIdx = optIdx >= 0 ? optIdx : 0;
-                }
-              }
-            }
-          } else if (typeof q.options === "object") {
-            const keys = Object.keys(q.options).sort(); // usually A, B, C, D
-            parsedOptions = keys.map((k) => q.options[k]);
-            const correctKey = q.correct_answer || q.correctAnswer || "A";
-            correctIdx =
-              keys.indexOf(correctKey) >= 0 ? keys.indexOf(correctKey) : 0;
-          }
+      // Comprehensive validation per question
+      const formattedQs = qs.map((q, idx) => {
+        const qNum = idx + 1;
+
+        // 1. Validate Question Text
+        const questionText = (q.question || q.text || "").trim();
+        if (!questionText) {
+          throw new Error(`Question #${qNum}: Missing or empty question text.`);
         }
 
-        if (q.option_svg_ids) {
+        // 2. Validate Options
+        let parsedOptions = [];
+        if (q.options) {
+          if (Array.isArray(q.options)) {
+            parsedOptions = q.options.map((opt) => String(opt).trim());
+          } else if (typeof q.options === "object") {
+            const keys = Object.keys(q.options).sort();
+            parsedOptions = keys.map((k) => String(q.options[k]).trim());
+          }
+        } else if (q.option_svg_ids) {
           const keys = Object.keys(q.option_svg_ids).sort();
           parsedOptions = keys.map((k) => {
             const svgId = q.option_svg_ids[k];
@@ -641,16 +625,74 @@ export function AdminModulesTab({
               ? q.options[k]
               : `[Missing SVG: ${svgId}]`;
           });
-          const correctKey = q.correct_answer || q.correctAnswer || "A";
-          correctIdx =
-            keys.indexOf(correctKey) >= 0
-              ? keys.indexOf(correctKey)
-              : typeof q.correctAnswerIndex === "number"
-                ? q.correctAnswerIndex
-                : 0;
         }
 
-        // Check if there is an svg_id mapping, inline svg_code, or HTML snippet 'diagram'
+        if (parsedOptions.length < 2) {
+          throw new Error(`Question #${qNum}: 'options' field must contain at least 2 choices. Found: ${parsedOptions.length}.`);
+        }
+
+        // 3. Validate Correct Answer Index & Keys
+        let numIndexProvided = undefined;
+        if (typeof q.correct_option_index === "number") {
+          numIndexProvided = q.correct_option_index;
+        } else if (typeof q.correctAnswerIndex === "number") {
+          numIndexProvided = q.correctAnswerIndex;
+        } else if (typeof q.correct_answer_index === "number") {
+          numIndexProvided = q.correct_answer_index;
+        } else if (typeof q.answer === "number") {
+          numIndexProvided = q.answer;
+        }
+
+        let textAnswerProvided = undefined;
+        if (q.correct_answer !== undefined || q.correctAnswer !== undefined) {
+          textAnswerProvided = String(q.correct_answer !== undefined ? q.correct_answer : q.correctAnswer).trim();
+        }
+
+        let letterIdx = undefined;
+        if (textAnswerProvided !== undefined) {
+          if (/^\d+$/.test(textAnswerProvided)) {
+            letterIdx = parseInt(textAnswerProvided, 10);
+          } else {
+            const letter = textAnswerProvided.toUpperCase();
+            if (letter === "A" || letter.startsWith("A")) letterIdx = 0;
+            else if (letter === "B" || letter.startsWith("B")) letterIdx = 1;
+            else if (letter === "C" || letter.startsWith("C")) letterIdx = 2;
+            else if (letter === "D" || letter.startsWith("D")) letterIdx = 3;
+            else {
+              const matchedOptIdx = parsedOptions.findIndex(
+                (opt) =>
+                  opt.toLowerCase() === textAnswerProvided.toLowerCase() ||
+                  opt.toLowerCase().includes(textAnswerProvided.toLowerCase())
+              );
+              letterIdx = matchedOptIdx >= 0 ? matchedOptIdx : undefined;
+            }
+          }
+        }
+
+        if (
+          numIndexProvided !== undefined &&
+          letterIdx !== undefined &&
+          numIndexProvided !== letterIdx
+        ) {
+          throw new Error(
+            `Question #${qNum}: Contradictory answers! 'correct_answer': "${textAnswerProvided}" (Index ${letterIdx}) conflicts with 'correct_option_index': ${numIndexProvided}.`
+          );
+        }
+
+        const correctIdx =
+          numIndexProvided !== undefined
+            ? numIndexProvided
+            : letterIdx !== undefined
+            ? letterIdx
+            : 0;
+
+        if (correctIdx < 0 || correctIdx >= parsedOptions.length) {
+          throw new Error(
+            `Question #${qNum}: Invalid correct answer index (${correctIdx}). Options array length is ${parsedOptions.length}.`
+          );
+        }
+
+        // 4. Diagram / Image processing
         let imageString = q.image;
         if (q.diagram_type && q.diagram_code) {
           imageString = JSON.stringify({
@@ -658,40 +700,52 @@ export function AdminModulesTab({
             diagram_code: q.diagram_code,
           });
         } else if (q.svg_id && svgMap.has(q.svg_id)) {
-          // svg_id mapped
           const svgMarkup = svgMap.get(q.svg_id) || "";
           imageString = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgMarkup)))}`;
         } else if (q.diagram) {
-          // From the HTML file example
           imageString = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(q.diagram)))}`;
         } else if (q.svg_code) {
-          // Inline svg_code on the question
           imageString = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(q.svg_code)))}`;
         }
 
-        let questionText = q.question || q.text || "Untitled Question";
+        let fullQuestionText = questionText;
         if (q.subtext) {
-          questionText += `\n\n${q.subtext}`;
+          fullQuestionText += `\n\n${q.subtext}`;
         }
 
         return {
-          id: crypto.randomUUID(),
-          question: questionText,
+          id: q.id || crypto.randomUUID(),
+          question: fullQuestionText,
           options: parsedOptions,
           correctAnswerIndex: correctIdx,
           subject:
             q.category || q.topic || q.type || q.subject || currentSubject,
+          topic: q.topic || null,
+          subTopic: q.sub_topic || q.subTopic || null,
+          difficulty: q.difficulty || null,
           image: imageString,
           explanation: q.explanation || undefined,
         };
       });
 
-      setParsedQuestions([...parsedQuestions, ...formattedQs]);
-      setRawText("");
-      setError("");
+      setPendingImportQuestions(formattedQs);
+      setIsImportPreviewOpen(true);
     } catch (err) {
-      setError("Failed to parse JSON: " + err.message);
+      setError(err.message);
     }
+  };
+
+  const handleConfirmImport = () => {
+    setParsedQuestions((prev) => [...prev, ...pendingImportQuestions]);
+    setPendingImportQuestions([]);
+    setIsImportPreviewOpen(false);
+    setRawText("");
+    setError("");
+  };
+
+  const handleCancelImport = () => {
+    setPendingImportQuestions([]);
+    setIsImportPreviewOpen(false);
   };
 
   const handleSaveModule = async () => {
@@ -1630,15 +1684,19 @@ Please generate the requested JSON now.`;
                   </button>
                 </div>
                 <div className="text-xs text-slate-500 mb-2">
-                  Example:
-                  <pre className="mt-1 p-2 bg-slate-100 dark:bg-slate-800 rounded">
+                  Supported Formats Example:
+                  <pre className="mt-1 p-2 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[11px] overflow-x-auto">
                     {`[
   {
-    "question": "Which of these is the correct mirror image?",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correctAnswerIndex": 1,
-    "explanation": "Because option B correctly mirrors the left side.",
-    "svg_code": "<svg>...</svg>"
+    "id": "REF_Q01",
+    "type": "Technical",
+    "difficulty": "Easy",
+    "topic": "Fundamentals",
+    "sub_topic": "Ohm's Law",
+    "question": "What is the equivalent resistance of two 10 Ω resistors connected in series?",
+    "options": ["5 Ω", "20 Ω", "100 Ω", "10 Ω"],
+    "correct_answer": "B",
+    "correct_option_index": 1
   }
 ]`}
                   </pre>
@@ -2107,6 +2165,168 @@ Please generate the requested JSON now.`;
               >
                 Close Preview
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Confirmation Preview Modal */}
+      {isImportPreviewOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-emerald-500" />
+                  Question Import Preview ({pendingImportQuestions.length} Questions)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Please review the questions, options, and correct answers before adding them to your module.
+                </p>
+              </div>
+              <button
+                onClick={handleCancelImport}
+                className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Cancel Import"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content - Scrollable Question List */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-grow bg-slate-50/50 dark:bg-slate-950/50">
+              {pendingImportQuestions.map((q, qIdx) => (
+                <div
+                  key={qIdx}
+                  className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
+                      Question {qIdx + 1} of {pendingImportQuestions.length}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {q.difficulty && (
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                            q.difficulty.toLowerCase() === "easy"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                              : q.difficulty.toLowerCase() === "medium"
+                              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                              : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300"
+                          }`}
+                        >
+                          {q.difficulty}
+                        </span>
+                      )}
+                      {q.topic && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                          {q.topic}
+                        </span>
+                      )}
+                      {q.subTopic && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                          {q.subTopic}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-base font-medium text-slate-900 dark:text-slate-100 leading-relaxed">
+                    <MathText content={q.question} />
+                  </div>
+
+                  {q.image && (
+                    <SvgDiagram
+                      svgCode={q.image}
+                      className="max-h-48"
+                      containerClassName="my-3"
+                    />
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    {q.options.map((opt, oIdx) => {
+                      const isCorrect = q.correctAnswerIndex === oIdx;
+                      return (
+                        <div
+                          key={oIdx}
+                          className={`px-4 py-3 rounded-xl border flex items-center transition-colors ${
+                            isCorrect
+                              ? "bg-emerald-50 border-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-700"
+                              : "bg-slate-50 border-slate-200 dark:bg-slate-900/50 dark:border-slate-800"
+                          }`}
+                        >
+                          <div
+                            className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold mr-3 shrink-0 ${
+                              isCorrect
+                                ? "bg-emerald-600 text-white shadow-sm"
+                                : "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+                            }`}
+                          >
+                            {String.fromCharCode(65 + oIdx)}
+                          </div>
+                          <div
+                            className={`flex-1 text-sm ${
+                              isCorrect
+                                ? "text-emerald-950 dark:text-emerald-100 font-semibold"
+                                : "text-slate-700 dark:text-slate-300"
+                            }`}
+                          >
+                            {opt.startsWith("data:image/") || opt.trim().startsWith("<svg") ? (
+                              <SvgDiagram
+                                svgCode={opt}
+                                className="max-h-24 w-auto object-contain"
+                                containerClassName=""
+                              />
+                            ) : (
+                              <MathText content={opt} />
+                            )}
+                          </div>
+                          {isCorrect && (
+                            <span className="flex items-center text-xs font-bold text-emerald-600 dark:text-emerald-400 ml-2">
+                              <CheckCircle2 className="w-4 h-4 mr-1 text-emerald-500" />
+                              (Correct)
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {q.explanation && (
+                    <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30">
+                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider mb-1">
+                        Explanation
+                      </p>
+                      <div className="text-xs text-indigo-900 dark:text-indigo-200">
+                        <MathText content={q.explanation} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Found any errors? Click <strong>Cancel & Edit Code</strong> to modify your JSON.
+              </span>
+              <div className="flex items-center space-x-3 w-full sm:w-auto">
+                <button
+                  onClick={handleCancelImport}
+                  className="w-1/2 sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  Cancel & Edit Code
+                </button>
+                <button
+                  onClick={handleConfirmImport}
+                  className="w-1/2 sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-colors flex items-center justify-center space-x-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Confirm & Add ({pendingImportQuestions.length} Questions)</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
