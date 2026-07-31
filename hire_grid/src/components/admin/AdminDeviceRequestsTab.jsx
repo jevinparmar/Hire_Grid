@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-
-import { collection, db, doc, getDocs, orderBy, query, setDoc } from "../../firebase";
+import { api } from "../../lib/api";
 import { Check, X } from "lucide-react";
 
 export function AdminDeviceRequestsTab() {
@@ -10,12 +9,12 @@ export function AdminDeviceRequestsTab() {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(
-        query(collection(db, "device_requests"), orderBy("createdAt", "desc")),
-      );
-      setRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const res = await api.get("/device-requests");
+      if (res.success && res.requests) {
+        setRequests(res.requests);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Fetch device requests error:", err);
     }
     setLoading(false);
   };
@@ -26,29 +25,11 @@ export function AdminDeviceRequestsTab() {
 
   const handleAction = async (request, status) => {
     try {
-      await setDoc(
-        doc(db, "device_requests", request.id),
-        { ...request, status },
-        { merge: true },
-      );
-      if (status === "approved") {
-        // Update user's deviceId
-        await setDoc(
-          doc(db, "users", request.userId),
-          {
-            deviceId: request.newDeviceId,
-            // We could also add a field `sessionRevokedAt` if we want to force logout on old devices
-            sessionRevokedAt: Date.now(),
-          },
-          { merge: true },
-        );
-      }
+      await api.put(`/device-requests/${request.id}`, { status });
       fetchRequests();
     } catch (err) {
-      console.error("Device Request Process Failed", err.code, err.message);
-      alert(
-        "Unable to process request: Permission denied. Please contact administrator.",
-      );
+      console.error("Device Request Process Failed", err);
+      alert("Unable to process request: " + (err.message || "Failed"));
     }
   };
 

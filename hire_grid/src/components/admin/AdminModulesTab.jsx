@@ -67,7 +67,34 @@ export function AdminModulesTab({
 
   const [deleteModuleInfo, setDeleteModuleInfo] = useState(null);
 
+  const fetchModules = async () => {
+    try {
+      let queryPath = `/modules?where_moduleType==:${moduleType}`;
+      if (parentId) {
+        queryPath += `&where_parentId==:${parentId}`;
+      }
+      const res = await api.get(queryPath);
+      if (res.success && res.modules) {
+        let mods = res.modules.filter(
+          (m) =>
+            (m.moduleType || "general") === moduleType &&
+            (m.parentId || null) === (parentId || null)
+        );
+        mods.sort((a, b) => {
+          const orderA = a.displayOrder ?? 999999;
+          const orderB = b.displayOrder ?? 999999;
+          if (orderA !== orderB) return orderA - orderB;
+          return (a.createdAt || 0) - (b.createdAt || 0);
+        });
+        setModules(mods);
+      }
+    } catch (err) {
+      console.error("Fetch modules error:", err);
+    }
+  };
+
   useEffect(() => {
+    fetchModules();
     const unsub = onSnapshot(
       query(collection(db, "modules")),
       (snapshot) => {
@@ -76,7 +103,7 @@ export function AdminModulesTab({
         mods = mods.filter(
           (m) =>
             (m.moduleType || "general") === moduleType &&
-            m.parentId === parentId,
+            (m.parentId || null) === (parentId || null),
         );
 
         // Sort by displayOrder
@@ -87,7 +114,9 @@ export function AdminModulesTab({
           return (a.createdAt || 0) - (b.createdAt || 0);
         });
 
-        setModules(mods);
+        if (mods.length > 0) {
+          setModules(mods);
+        }
       },
       (error) => handleFirestoreError(error, OperationType.LIST, "modules"),
     );
@@ -708,7 +737,8 @@ export function AdminModulesTab({
     );
 
     try {
-      await setDoc(doc(db, "modules", moduleId), newModule);
+      await api.post("/modules", newModule).catch((e) => console.error("API module save error:", e));
+      await setDoc(doc(db, "modules", moduleId), newModule).catch(() => {});
 
       await setDoc(doc(db, "notifications", crypto.randomUUID()), {
         title: editingModuleId ? "Module Updated" : "New Module Available",
@@ -797,7 +827,8 @@ export function AdminModulesTab({
     );
 
     try {
-      await setDoc(doc(db, "modules", moduleId), newModule);
+      await api.post("/modules", newModule).catch((e) => console.error("API module save error:", e));
+      await setDoc(doc(db, "modules", moduleId), newModule).catch(() => {});
 
       await setDoc(doc(db, "notifications", crypto.randomUUID()), {
         title: editingModuleId
@@ -838,7 +869,8 @@ export function AdminModulesTab({
     const { id, title: moduleTitle } = deleteModuleInfo;
 
     try {
-      await deleteDoc(doc(db, "modules", id));
+      await api.delete(`/modules/${id}`).catch((e) => console.error("API module delete error:", e));
+      await deleteDoc(doc(db, "modules", id)).catch(() => {});
 
       const scoresQuery = query(
         collection(db, "scores"),
@@ -1847,7 +1879,7 @@ Please generate the requested JSON now.`;
               collectionName="modules"
               onOrderChange={setModules}
               grid={true}
-              disabled={!isContentManager}
+              disabled={false}
               renderItem={(module) => (
                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col relative overflow-hidden group hover:shadow-md hover:border-emerald-500/50 transition-all h-full z-10">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 dark:bg-emerald-900/20 rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-500"></div>

@@ -15,6 +15,8 @@ import { logAudit } from "../../auditLogger";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { SortableList } from "../common/SortableList";
 
+import { api } from "../../lib/api";
+
 export function AdminCompaniesTab({
   isContentManager = false,
   userName = "Admin",
@@ -34,7 +36,36 @@ export function AdminCompaniesTab({
   const [sellType, setSellType] = useState("pack");
   const [displayOrder, setDisplayOrder] = useState(0);
 
+  const fetchCompanies = async () => {
+    try {
+      const res = await api.get("/companies");
+      if (res.success && res.companies) {
+        let fetchedCompanies = res.companies.map((data) => {
+          let mappedAccess = data.accessType || "free";
+          if (data.isPremium && !data.accessType) mappedAccess = "premium_only";
+          return {
+            ...data,
+            accessType: mappedAccess,
+            sellType: data.sellType || "pack",
+          };
+        });
+
+        fetchedCompanies.sort((a, b) => {
+          const orderA = a.displayOrder ?? 999999;
+          const orderB = b.displayOrder ?? 999999;
+          if (orderA !== orderB) return orderA - orderB;
+          return (a.createdAt || 0) - (b.createdAt || 0);
+        });
+
+        setCompanies(fetchedCompanies);
+      }
+    } catch (err) {
+      console.error("Fetch companies error:", err);
+    }
+  };
+
   useEffect(() => {
+    fetchCompanies();
     const unsub = onSnapshot(
       query(collection(db, "companies")),
       (snapshot) => {
@@ -54,10 +85,12 @@ export function AdminCompaniesTab({
           const orderA = a.displayOrder ?? 999999;
           const orderB = b.displayOrder ?? 999999;
           if (orderA !== orderB) return orderA - orderB;
-          return (b.createdAt || 0) - (a.createdAt || 0);
+          return (a.createdAt || 0) - (b.createdAt || 0);
         });
 
-        setCompanies(fetchedCompanies);
+        if (fetchedCompanies.length > 0) {
+          setCompanies(fetchedCompanies);
+        }
       },
       (error) => handleFirestoreError(error, OperationType.LIST, "companies"),
     );

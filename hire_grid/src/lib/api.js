@@ -54,6 +54,33 @@ async function request(method, path, body = null) {
   }
 }
 
+export function getDeviceId() {
+  let deviceId = localStorage.getItem("hiregrid_device_id");
+  if (!deviceId) {
+    deviceId = "dev_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem("hiregrid_device_id", deviceId);
+  }
+  return deviceId;
+}
+
+export function getDeviceName() {
+  const ua = navigator.userAgent || "";
+  let browser = "Browser";
+  if (ua.includes("Chrome")) browser = "Chrome";
+  else if (ua.includes("Firefox")) browser = "Firefox";
+  else if (ua.includes("Safari")) browser = "Safari";
+  else if (ua.includes("Edge")) browser = "Edge";
+  
+  let os = "Device";
+  if (ua.includes("Linux")) os = "Linux";
+  else if (ua.includes("Windows")) os = "Windows";
+  else if (ua.includes("Macintosh")) os = "Mac";
+  else if (ua.includes("Android")) os = "Android";
+  else if (ua.includes("iPhone")) os = "iPhone";
+
+  return `${browser} on ${os}`;
+}
+
 export const api = {
   get: (path) => request("GET", path),
   post: (path, body) => request("POST", path, body),

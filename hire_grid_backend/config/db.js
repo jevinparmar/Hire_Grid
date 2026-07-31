@@ -43,6 +43,8 @@ const createTablesQuery = `
     specialization VARCHAR(255),
     has_full_premium BOOLEAN DEFAULT FALSE,
     device_id VARCHAR(255),
+    max_devices INTEGER DEFAULT 1,
+    allowed_devices JSONB DEFAULT '[]',
     active_plan_id VARCHAR(255),
     plan_expiry BIGINT,
     google_id VARCHAR(255),
@@ -384,13 +386,21 @@ async function initDb() {
       ALTER TABLE companies ADD COLUMN IF NOT EXISTS display_order INTEGER;
       ALTER TABLE companies ADD COLUMN IF NOT EXISTS created_at BIGINT;
 
-      -- Users additions for access permissions
+      -- Users additions for access permissions & device management
       ALTER TABLE users ADD COLUMN IF NOT EXISTS purchased_companies JSONB DEFAULT '[]';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_company_access JSONB DEFAULT '{}';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_subject_access JSONB DEFAULT '{}';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_topic_access JSONB DEFAULT '{}';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_exam_access JSONB DEFAULT '{}';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_module_access JSONB DEFAULT '{}';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS max_devices INTEGER DEFAULT 1;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_devices JSONB DEFAULT '[]';
+
+      -- Device requests additions
+      ALTER TABLE device_requests ADD COLUMN IF NOT EXISTS user_name VARCHAR(255);
+      ALTER TABLE device_requests ADD COLUMN IF NOT EXISTS user_email VARCHAR(255);
+      ALTER TABLE device_requests ADD COLUMN IF NOT EXISTS device_id VARCHAR(255);
+      ALTER TABLE device_requests ADD COLUMN IF NOT EXISTS device_name VARCHAR(255);
 
       -- Payment requests additions
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS user_email VARCHAR(255);

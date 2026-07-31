@@ -15,13 +15,14 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SortableItem } from "./SortableItem";
-import { db, doc, writeBatch } from "../../firebase";
+import { api } from "../../lib/api";
 
 
 export function SortableList({
   items,
   collectionName,
   onOrderChange,
+  onSaveOrder,
   renderItem,
   grid = false,
   disabled = false,
@@ -63,17 +64,23 @@ export function SortableList({
         onOrderChange(updatedItems);
       }
 
-      // Save to Firestore using a batch
+      // Save to PostgreSQL database via API
       try {
-        const batch = writeBatch(db);
-        updatedItems.forEach((item) => {
-          const docRef = doc(db, collectionName, item.id);
-          batch.update(docRef, { displayOrder: item.displayOrder });
-        });
-        await batch.commit();
+        if (onSaveOrder) {
+          await onSaveOrder(updatedItems);
+        } else if (collectionName === "modules") {
+          await api.post("/modules", { modules: updatedItems });
+        } else if (collectionName === "companies") {
+          for (const comp of updatedItems) {
+            await api.post("/companies", comp);
+          }
+        } else if (collectionName === "hierarchy_nodes" || collectionName === "hierarchy-nodes") {
+          for (const node of updatedItems) {
+            await api.post("/hierarchy-nodes", node);
+          }
+        }
       } catch (error) {
         console.error("Failed to save new order:", error);
-        alert("Failed to save display order.");
       }
     }
   };

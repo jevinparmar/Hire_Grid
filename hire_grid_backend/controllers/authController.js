@@ -58,6 +58,14 @@ const formatUserResponse = (user) => {
     formatted.emailVerified = formatted.email_verified;
     delete formatted.email_verified;
   }
+  if (formatted.max_devices !== undefined) {
+    formatted.maxDevices = formatted.max_devices;
+    delete formatted.max_devices;
+  }
+  if (formatted.allowed_devices !== undefined) {
+    formatted.allowedDevices = formatted.allowed_devices;
+    delete formatted.allowed_devices;
+  }
   
   return formatted;
 };
@@ -141,8 +149,73 @@ exports.signup = async (req, res) => {
   }
 };
 
+const validateAndRegisterDevice = async (user, deviceId, deviceName) => {
+  if (!deviceId) return { allowed: true };
+
+  const maxDevices = user.max_devices !== undefined && user.max_devices !== null ? Number(user.max_devices) : 1;
+  let allowedDevices = Array.isArray(user.allowed_devices)
+    ? user.allowed_devices
+    : typeof user.allowed_devices === "string"
+    ? JSON.parse(user.allowed_devices || "[]")
+    : [];
+
+  const existingDeviceIndex = allowedDevices.findIndex((d) => d.id === deviceId || d.deviceId === deviceId);
+
+  if (existingDeviceIndex !== -1) {
+    allowedDevices[existingDeviceIndex].lastLoginAt = Date.now();
+    if (deviceName) allowedDevices[existingDeviceIndex].name = deviceName;
+
+    await pool.query(
+      `UPDATE users SET allowed_devices = $1, device_id = $2 WHERE id = $3`,
+      [JSON.stringify(allowedDevices), deviceId, user.id]
+    );
+    user.allowed_devices = allowedDevices;
+    user.device_id = deviceId;
+    return { allowed: true };
+  }
+
+  // Device not registered yet
+  if (allowedDevices.length < maxDevices) {
+    const newDevObj = {
+      id: deviceId,
+      deviceId: deviceId,
+      name: deviceName || "Browser Session",
+      addedAt: Date.now(),
+      lastLoginAt: Date.now(),
+    };
+    allowedDevices.push(newDevObj);
+
+    await pool.query(
+      `UPDATE users SET allowed_devices = $1, device_id = $2 WHERE id = $3`,
+      [JSON.stringify(allowedDevices), deviceId, user.id]
+    );
+    user.allowed_devices = allowedDevices;
+    user.device_id = deviceId;
+    return { allowed: true };
+  }
+
+  // Device limit reached
+  const reqId = crypto.randomUUID();
+  try {
+    await pool.query(
+      `INSERT INTO device_requests (id, user_id, user_name, user_email, device_id, device_name, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'pending')`,
+      [reqId, user.id, user.name || "Student", user.email, deviceId, deviceName || "Unknown Device"]
+    );
+  } catch (err) {
+    console.error("Device request insert warning:", err.message);
+  }
+
+  return {
+    allowed: false,
+    maxDevices,
+    currentCount: allowedDevices.length,
+    message: `Login allowed on ${maxDevices} device(s) only. Device limit reached. Please contact Super Admin for multi-device permission.`,
+  };
+};
+
 exports.login = async (req, res) => {
-  const { email, password, isAdminLogin = false } = req.body;
+  const { email, password, isAdminLogin = false, deviceId, deviceName } = req.body;
 
   if (!password || (!isAdminLogin && !email)) {
     return res.status(400).json({ error: isAdminLogin ? "Password is required." : "Email and password are required." });
@@ -209,17 +282,15 @@ exports.login = async (req, res) => {
         return res.status(401).json({ error: "Invalid email or password." });
       }
 
-      // Bypass email verification check as OTP has been disabled
-      /*
-      if (!user.email_verified) {
-        return res.status(400).json({
-          success: false,
-          requiresVerification: true,
-          email: user.email,
-          message: "Please verify your email first.",
+      // Check device restrictions
+      const deviceCheck = await validateAndRegisterDevice(user, deviceId, deviceName);
+      if (!deviceCheck.allowed) {
+        return res.status(403).json({
+          error: deviceCheck.message,
+          deviceLimitReached: true,
+          maxDevices: deviceCheck.maxDevices,
         });
       }
-      */
     }
 
     // Generate JWT Token
@@ -330,6 +401,17 @@ exports.googleLogin = async (req, res) => {
         [userId, email.toLowerCase(), name || "Google User", "student", googleId, "google", picture || null]
       );
       user = insertResult.rows[0];
+    }
+
+    // Check device restrictions
+    const { deviceId, deviceName } = req.body;
+    const deviceCheck = await validateAndRegisterDevice(user, deviceId, deviceName);
+    if (!deviceCheck.allowed) {
+      return res.status(403).json({
+        error: deviceCheck.message,
+        deviceLimitReached: true,
+        maxDevices: deviceCheck.maxDevices,
+      });
     }
 
     // Generate JWT Token

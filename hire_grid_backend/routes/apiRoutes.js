@@ -94,6 +94,7 @@ router.get("/access-requests", dataController.getAccessRequests);
 router.post("/access-requests", dataController.createAccessRequest);
 router.get("/device-requests", dataController.getDeviceRequests);
 router.post("/device-requests", dataController.createDeviceRequest);
+router.put("/device-requests/:id", dataController.updateDeviceRequest);
 
 // Plans
 router.get("/plans", dataController.getPlans);

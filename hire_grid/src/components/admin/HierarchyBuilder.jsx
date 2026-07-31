@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { logAudit } from "../../auditLogger";
 
+import { api } from "../../lib/api";
+
 export function HierarchyBuilder({
   isContentManager = false,
   userName = "Admin",
@@ -42,7 +44,37 @@ export function HierarchyBuilder({
   const [displayOrder, setDisplayOrder] = useState(0);
   const [deleteNodeInfo, setDeleteNodeInfo] = useState(null);
 
+  const fetchNodes = async () => {
+    try {
+      let queryPath = `/hierarchy-nodes?where_type==:${currentNodeInfo.type}`;
+      if (currentNodeInfo.id) {
+        queryPath += `&where_parentId==:${currentNodeInfo.id}`;
+      } else {
+        queryPath += `&where_parentId==:null`;
+      }
+      const res = await api.get(queryPath);
+      if (res.success && res.nodes) {
+        let fetchedNodes = res.nodes;
+        fetchedNodes.forEach((n) => {
+          if (!n.accessType)
+            n.accessType = n.isPremium ? "premium_only" : "free";
+          if (!n.sellType) n.sellType = "pack";
+        });
+        fetchedNodes.sort((a, b) => {
+          const orderA = a.displayOrder ?? 999999;
+          const orderB = b.displayOrder ?? 999999;
+          if (orderA !== orderB) return orderA - orderB;
+          return (a.createdAt || 0) - (b.createdAt || 0);
+        });
+        setNodes(fetchedNodes);
+      }
+    } catch (err) {
+      console.error("Fetch hierarchy nodes error:", err);
+    }
+  };
+
   useEffect(() => {
+    fetchNodes();
     const q = query(
       collection(db, "hierarchy_nodes"),
       where("parentId", "==", currentNodeInfo.id),
@@ -56,20 +88,20 @@ export function HierarchyBuilder({
           id: d.id,
           ...d.data(),
         }));
-        // map legacy isPremium to accessType
         fetchedNodes.forEach((n) => {
           if (!n.accessType)
             n.accessType = n.isPremium ? "premium_only" : "free";
           if (!n.sellType) n.sellType = "pack";
         });
-        // sort on client since we might not have composite index
         fetchedNodes.sort((a, b) => {
           const orderA = a.displayOrder ?? 999999;
           const orderB = b.displayOrder ?? 999999;
           if (orderA !== orderB) return orderA - orderB;
-          return a.createdAt - b.createdAt;
+          return (a.createdAt || 0) - (b.createdAt || 0);
         });
-        setNodes(fetchedNodes);
+        if (fetchedNodes.length > 0) {
+          setNodes(fetchedNodes);
+        }
       },
       (error) =>
         handleFirestoreError(error, OperationType.LIST, "hierarchy_nodes"),
@@ -107,7 +139,8 @@ export function HierarchyBuilder({
       if (isPurchasable) payload.price = price;
       else payload.price = 0;
 
-      await setDoc(doc(db, "hierarchy_nodes", id), payload);
+      await api.post("/hierarchy-nodes", payload).catch((err) => console.error("API save node error:", err));
+      await setDoc(doc(db, "hierarchy_nodes", id), payload).catch(() => {});
 
       if (isContentManager) {
         await logAudit(
@@ -140,7 +173,8 @@ export function HierarchyBuilder({
       return;
     }
     try {
-      await deleteDoc(doc(db, "hierarchy_nodes", deleteNodeInfo.id));
+      await api.delete(`/hierarchy-nodes/${deleteNodeInfo.id}`).catch((err) => console.error(err));
+      await deleteDoc(doc(db, "hierarchy_nodes", deleteNodeInfo.id)).catch(() => {});
       if (isContentManager) {
         await logAudit(
           userName,

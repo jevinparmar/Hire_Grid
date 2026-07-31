@@ -107,7 +107,7 @@ exports.getModules = async (req, res) => {
         GROUP BY module_id
       ) q ON m.id = q.module_id
     `;
-    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'm.created_at DESC');
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'COALESCE(m.display_order, 999999) ASC, m.created_at ASC');
     const result = await pool.query(sql, values);
     
     // Fill mock questions array of the correct length so frontend doesn't break
@@ -181,7 +181,7 @@ exports.saveModules = async (req, res) => {
           m.accessType || null,
           m.isPremium !== undefined ? m.isPremium : null,
           m.price || null,
-          m.displayOrder || null,
+          m.displayOrder !== undefined ? m.displayOrder : (m.display_order !== undefined ? m.display_order : Math.floor(Date.now() / 1000)),
           m.isMaster !== undefined ? m.isMaster : false,
           JSON.stringify(m.subTestests || m.subTests || []),
           m.createdBy || null
@@ -324,7 +324,7 @@ exports.getCompanies = async (req, res) => {
         created_by AS "createdBy"
       FROM companies
     `;
-    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'created_at DESC');
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'COALESCE(display_order, 999999) ASC, created_at ASC');
     const result = await pool.query(sql, values);
     res.json({ success: true, companies: result.rows });
   } catch (err) {
@@ -335,6 +335,7 @@ exports.getCompanies = async (req, res) => {
 exports.saveCompany = async (req, res) => {
   const { id, name, description, logoUrl, accessType, isPremium, price, sellType, displayOrder, createdAt, createdBy } = req.body;
   const compId = id || crypto.randomUUID();
+  const targetDisplayOrder = displayOrder !== undefined && displayOrder !== null ? displayOrder : Math.floor(Date.now() / 1000);
   try {
     await pool.query(
       `INSERT INTO companies (
@@ -361,7 +362,7 @@ exports.saveCompany = async (req, res) => {
         isPremium !== undefined ? isPremium : false,
         price || 0,
         sellType || 'pack',
-        displayOrder || 0,
+        targetDisplayOrder,
         createdAt || Date.now(),
         createdBy || null
       ]
@@ -537,7 +538,7 @@ exports.getHierarchyNodes = async (req, res) => {
         created_by AS "createdBy"
       FROM hierarchy_nodes
     `;
-    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'created_at DESC');
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'COALESCE(display_order, 999999) ASC, created_at ASC');
     const result = await pool.query(sql, values);
     res.json({ success: true, nodes: result.rows });
   } catch (err) {
@@ -548,6 +549,7 @@ exports.getHierarchyNodes = async (req, res) => {
 exports.saveHierarchyNode = async (req, res) => {
   const { id, name, type, parentId, description, accessType, isPremium, sellType, displayOrder, createdAt, createdBy } = req.body;
   const nodeId = id || crypto.randomUUID();
+  const targetDisplayOrder = displayOrder !== undefined && displayOrder !== null ? displayOrder : Math.floor(Date.now() / 1000);
   try {
     await pool.query(
       `INSERT INTO hierarchy_nodes (
@@ -574,7 +576,7 @@ exports.saveHierarchyNode = async (req, res) => {
         accessType || 'free', 
         isPremium !== undefined ? isPremium : false, 
         sellType || 'pack', 
-        displayOrder || 0,
+        targetDisplayOrder,
         createdAt || Date.now(),
         createdBy || null
       ]
@@ -689,6 +691,7 @@ exports.getUsers = async (req, res) => {
     const baseQuery = `
       SELECT id, name, email, role, branch, semester, xp, level, rank, specialization, 
              has_full_premium AS "hasFullPremium", device_id AS "deviceId", 
+             max_devices AS "maxDevices", allowed_devices AS "allowedDevices",
              active_plan_id AS "activePlanId", plan_expiry AS "planExpiry", 
              purchased_companies AS "purchasedCompanies" 
       FROM users
@@ -707,6 +710,7 @@ exports.getUserById = async (req, res) => {
     const result = await pool.query(
       `SELECT id, name, email, role, branch, semester, xp, level, rank, specialization, 
               has_full_premium AS "hasFullPremium", device_id AS "deviceId", 
+              max_devices AS "maxDevices", allowed_devices AS "allowedDevices",
               active_plan_id AS "activePlanId", plan_expiry AS "planExpiry", 
               purchased_companies AS "purchasedCompanies",
               granted_company_access AS "grantedCompanyAccess",
@@ -750,6 +754,8 @@ exports.updateUser = async (req, res) => {
       specialization: user.specialization,
       hasFullPremium: user.has_full_premium,
       deviceId: user.device_id,
+      maxDevices: user.max_devices !== undefined ? user.max_devices : 1,
+      allowedDevices: user.allowed_devices || [],
       activePlanId: user.active_plan_id,
       planExpiry: user.plan_expiry ? Number(user.plan_expiry) : null,
       purchasedCompanies: user.purchased_companies || [],
@@ -788,11 +794,12 @@ exports.updateUser = async (req, res) => {
       `UPDATE users 
        SET name = $1, branch = $2, semester = $3, xp = $4, level = $5, rank = $6, 
            specialization = $7, has_full_premium = $8, device_id = $9, 
-           active_plan_id = $10, plan_expiry = $11, purchased_companies = $12, 
-           granted_company_access = $13, granted_subject_access = $14, 
-           granted_topic_access = $15, granted_exam_access = $16, 
-           granted_module_access = $17, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $18`,
+           max_devices = $10, allowed_devices = $11,
+           active_plan_id = $12, plan_expiry = $13, purchased_companies = $14, 
+           granted_company_access = $15, granted_subject_access = $16, 
+           granted_topic_access = $17, granted_exam_access = $18, 
+           granted_module_access = $19, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $20`,
       [
         data.name,
         data.branch,
@@ -803,6 +810,8 @@ exports.updateUser = async (req, res) => {
         data.specialization,
         data.hasFullPremium,
         data.deviceId,
+        Number(data.maxDevices) || 1,
+        JSON.stringify(data.allowedDevices),
         data.activePlanId,
         data.planExpiry,
         JSON.stringify(data.purchasedCompanies),
@@ -1022,7 +1031,19 @@ exports.createAccessRequest = async (req, res) => {
 
 exports.getDeviceRequests = async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM device_requests ORDER BY created_at DESC");
+    const result = await pool.query(`
+      SELECT 
+        id, 
+        user_id AS "userId", 
+        user_name AS "userName", 
+        user_email AS "userEmail", 
+        device_id AS "newDeviceId", 
+        device_name AS "deviceName", 
+        status, 
+        created_at AS "createdAt" 
+      FROM device_requests 
+      ORDER BY created_at DESC
+    `);
     res.json({ success: true, requests: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1030,13 +1051,61 @@ exports.getDeviceRequests = async (req, res) => {
 };
 
 exports.createDeviceRequest = async (req, res) => {
-  const { id, userId, status = "pending" } = req.body;
+  const { id, userId, userName, userEmail, deviceId, deviceName, status = "pending" } = req.body;
   const reqId = id || crypto.randomUUID();
   try {
     await pool.query(
-      `INSERT INTO device_requests (id, user_id, status) VALUES ($1, $2, $3)`,
-      [reqId, userId, status]
+      `INSERT INTO device_requests (id, user_id, user_name, user_email, device_id, device_name, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [reqId, userId, userName || null, userEmail || null, deviceId || null, deviceName || null, status]
     );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateDeviceRequest = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    const reqRes = await pool.query("SELECT * FROM device_requests WHERE id = $1", [id]);
+    if (reqRes.rows.length === 0) {
+      return res.status(404).json({ error: "Device request not found" });
+    }
+    const devReq = reqRes.rows[0];
+
+    await pool.query("UPDATE device_requests SET status = $1 WHERE id = $2", [status, id]);
+
+    if (status === "approved" && devReq.user_id) {
+      const userRes = await pool.query("SELECT * FROM users WHERE id = $1", [devReq.user_id]);
+      if (userRes.rows.length > 0) {
+        const user = userRes.rows[0];
+        let allowed = Array.isArray(user.allowed_devices)
+          ? user.allowed_devices
+          : typeof user.allowed_devices === "string"
+          ? JSON.parse(user.allowed_devices || "[]")
+          : [];
+
+        if (devReq.device_id && !allowed.some((d) => d.id === devReq.device_id || d.deviceId === devReq.device_id)) {
+          allowed.push({
+            id: devReq.device_id,
+            deviceId: devReq.device_id,
+            name: devReq.device_name || "Approved Device",
+            addedAt: Date.now(),
+            lastLoginAt: Date.now(),
+          });
+        }
+
+        const newMax = Math.max(Number(user.max_devices || 1) + 1, allowed.length);
+
+        await pool.query(
+          "UPDATE users SET max_devices = $1, allowed_devices = $2 WHERE id = $3",
+          [newMax, JSON.stringify(allowed), devReq.user_id]
+        );
+      }
+    }
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

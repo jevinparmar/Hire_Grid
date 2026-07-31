@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ShieldCheck, Mail, Lock, User, ArrowLeft, Timer, CheckCircle, RefreshCw } from "lucide-react";
-import { api } from "../../lib/api";
+import { api, getDeviceId, getDeviceName } from "../../lib/api";
 
 export default function StudentAuth() {
   const navigate = useNavigate();
@@ -145,6 +145,8 @@ export default function StudentAuth() {
             email: formData.email,
             password: formData.password,
             isAdminLogin: false,
+            deviceId: getDeviceId(),
+            deviceName: getDeviceName(),
           });
 
           localStorage.setItem("token", res.token);

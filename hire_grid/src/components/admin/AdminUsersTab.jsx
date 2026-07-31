@@ -46,17 +46,50 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
     }
   };
 
+  const fetchStudents = async () => {
+    try {
+      const res = await api.get("/users");
+      if (res.success && res.users) {
+        setStudents(res.users.filter((u) => u.role === "student" || !u.role));
+      }
+    } catch (err) {
+      console.error("Fetch students error:", err);
+    }
+  };
+
+  const handleUpdateDeviceLimit = async (studentId, newLimit) => {
+    try {
+      await api.put(`/users/${studentId}`, { maxDevices: newLimit });
+      fetchStudents();
+    } catch (err) {
+      alert("Failed to update device limit: " + (err.message || "Error"));
+    }
+  };
+
+  const handleResetDevices = async (studentId) => {
+    try {
+      await api.put(`/users/${studentId}`, { allowedDevices: [], deviceId: null });
+      alert("Student device registrations reset successfully.");
+      fetchStudents();
+    } catch (err) {
+      alert("Failed to reset devices: " + (err.message || "Error"));
+    }
+  };
+
   useEffect(() => {
     fetchAdmins();
+    fetchStudents();
 
     const unsubStudents = onSnapshot(
       query(collection(db, "users")),
       (snapshot) => {
-        setStudents(
-          snapshot.docs
-            .map((d) => ({ id: d.id, ...d.data() }))
-            .filter((u) => u.role === "student"),
-        );
+        if (snapshot.docs.length > 0) {
+          setStudents(
+            snapshot.docs
+              .map((d) => ({ id: d.id, ...d.data() }))
+              .filter((u) => u.role === "student"),
+          );
+        }
       },
       (error) => handleFirestoreError(error, OperationType.LIST, "users"),
     );
@@ -667,41 +700,74 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Email
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Device Access
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider text-rose-500">
                   Danger Zone
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-950 divide-y divide-slate-200 dark:divide-slate-800">
-              {students.map((student) => (
-                <tr key={student.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100">
-                    {student.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                    {student.email}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() =>
-                        student.id &&
-                        initiateDeleteStudent(
-                          student.id,
-                          student.name || student.email,
-                        )
-                      }
-                      className="px-3 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 rounded border border-rose-200 dark:border-rose-800 transition-colors inline-flex items-center"
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      Delete User
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {students.map((student) => {
+                const currentMax = student.maxDevices !== undefined ? Number(student.maxDevices) : 1;
+                const allowedCount = Array.isArray(student.allowedDevices)
+                  ? student.allowedDevices.length
+                  : student.deviceId
+                  ? 1
+                  : 0;
+
+                return (
+                  <tr key={student.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {student.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                      {student.email}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                          {allowedCount} / {currentMax} Device(s)
+                        </span>
+                        <button
+                          onClick={() => handleUpdateDeviceLimit(student.id, currentMax + 1)}
+                          className="px-2 py-1 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 rounded font-semibold transition-colors"
+                          title="Allow 1 more device for this student"
+                        >
+                          + Allow Device ({currentMax + 1})
+                        </button>
+                        <button
+                          onClick={() => handleResetDevices(student.id)}
+                          className="px-2 py-1 text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 rounded font-semibold transition-colors"
+                          title="Clear registered devices for this student"
+                        >
+                          Reset Devices
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() =>
+                          student.id &&
+                          initiateDeleteStudent(
+                            student.id,
+                            student.name || student.email,
+                          )
+                        }
+                        className="px-3 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 rounded border border-rose-200 dark:border-rose-800 transition-colors inline-flex items-center"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete User
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
               {students.length === 0 && (
                 <tr>
                   <td
-                    colSpan={3}
+                    colSpan={4}
                     className="px-6 py-4 text-center text-sm text-slate-500"
                   >
                     No students found.
