@@ -70,6 +70,98 @@ export function AdminModulesTab({
 
   const [deleteModuleInfo, setDeleteModuleInfo] = useState(null);
 
+  // Question Editing State & Auto-Sync
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
+  const [editingQuestionForm, setEditingQuestionForm] = useState({
+    id: "",
+    question: "",
+    options: ["", "", "", ""],
+    correct_answer: "A",
+    correct_option_index: 0,
+    difficulty: "Easy",
+    topic: "",
+    subTopic: "",
+    type: "Technical",
+    explanation: "",
+  });
+
+  // Question Pagination State for Performance Optimization
+  const [questionsPage, setQuestionsPage] = useState(1);
+  const QUESTIONS_PER_PAGE = 20;
+
+  const handleStartEditQuestion = (idx) => {
+    const q = parsedQuestions[idx];
+    if (!q) return;
+    const letterMap = { 0: "A", 1: "B", 2: "C", 3: "D" };
+    const ansIdx = typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : 0;
+    const ansLetter = q.correct_answer || letterMap[ansIdx] || "A";
+
+    setEditingQuestionForm({
+      id: q.id || `q_${idx}`,
+      question: q.question || "",
+      options: Array.isArray(q.options) && q.options.length === 4 ? [...q.options] : ["", "", "", ""],
+      correct_answer: ansLetter,
+      correct_option_index: ansIdx,
+      difficulty: q.difficulty || "Easy",
+      topic: q.topic || "",
+      subTopic: q.subTopic || q.sub_topic || "",
+      type: q.subject || q.type || "Technical",
+      explanation: q.explanation || "",
+    });
+    setEditingQuestionIndex(idx);
+  };
+
+  const handleEditQuestionAnswerChange = (ansLetter) => {
+    const letterToIdx = { A: 0, B: 1, C: 2, D: 3 };
+    const newIdx = letterToIdx[ansLetter] !== undefined ? letterToIdx[ansLetter] : 0;
+    setEditingQuestionForm((prev) => ({
+      ...prev,
+      correct_answer: ansLetter,
+      correct_option_index: newIdx,
+    }));
+  };
+
+  const handleEditQuestionIndexChange = (idxNum) => {
+    const idxToLetter = { 0: "A", 1: "B", 2: "C", 3: "D" };
+    const newLetter = idxToLetter[idxNum] || "A";
+    setEditingQuestionForm((prev) => ({
+      ...prev,
+      correct_option_index: idxNum,
+      correct_answer: newLetter,
+    }));
+  };
+
+  const handleSaveEditedQuestion = () => {
+    if (editingQuestionIndex === null) return;
+    if (!editingQuestionForm.question.trim()) {
+      alert("Question text cannot be empty.");
+      return;
+    }
+    for (let i = 0; i < 4; i++) {
+      if (!editingQuestionForm.options[i] || !editingQuestionForm.options[i].trim()) {
+        alert(`Option ${String.fromCharCode(65 + i)} cannot be empty.`);
+        return;
+      }
+    }
+    const updated = [...parsedQuestions];
+    updated[editingQuestionIndex] = {
+      ...updated[editingQuestionIndex],
+      question: editingQuestionForm.question.trim(),
+      options: editingQuestionForm.options.map((opt) => opt.trim()),
+      correctAnswerIndex: editingQuestionForm.correct_option_index,
+      correct_answer: editingQuestionForm.correct_answer,
+      correct_option_index: editingQuestionForm.correct_option_index,
+      difficulty: editingQuestionForm.difficulty || "Easy",
+      topic: editingQuestionForm.topic || "",
+      subTopic: editingQuestionForm.subTopic || "",
+      subject: editingQuestionForm.type || "Technical",
+      type: editingQuestionForm.type || "Technical",
+      explanation: editingQuestionForm.explanation || "",
+    };
+    setParsedQuestions(updated);
+    setEditingQuestionIndex(null);
+  };
+
   const fetchModules = async () => {
     try {
       let queryPath = `/modules?where_moduleType==:${moduleType}`;
@@ -369,363 +461,170 @@ export function AdminModulesTab({
       }
 
       let parsed = null;
-
-      // Sanitize JSON string to fix common unescaped LaTeX backslashes from AI
-      let sanitizedText = rawText;
-      const mathCommands = [
-        "frac",
-        "cdot",
-        "times",
-        "int",
-        "partial",
-        "infty",
-        "begin",
-        "end",
-        "omega",
-        "pi",
-        "Delta",
-        "nabla",
-        "alpha",
-        "beta",
-        "gamma",
-        "theta",
-        "lambda",
-        "mu",
-        "sigma",
-        "phi",
-        "psi",
-        "tau",
-        "rho",
-        "sum",
-        "prod",
-        "lim",
-        "log",
-        "sin",
-        "cos",
-        "tan",
-        "sec",
-        "csc",
-        "cot",
-        "sqrt",
-        "text",
-        "textbf",
-        "emph",
-        "nu",
-        "xi",
-        "zeta",
-        "eta",
-        "iota",
-        "kappa",
-        "chi",
-        "upsilon",
-        "Leftarrow",
-        "Rightarrow",
-        "leftrightarrow",
-        "updownarrow",
-        "Leftrightarrow",
-        "Updownarrow",
-        "rightarrow",
-        "leftarrow",
-        "geq",
-        "leq",
-        "neq",
-        "approx",
-        "equiv",
-        "propto",
-        "pm",
-        "mp",
-        "div",
-        "circ",
-        "bullet",
-        "oplus",
-        "otimes",
-        "vee",
-        "wedge",
-        "cap",
-        "cup",
-        "subset",
-        "supset",
-        "subseteq",
-        "supseteq",
-        "in",
-        "notin",
-        "exists",
-        "nexists",
-        "forall",
-        "neg",
-        "implies",
-        "iff",
-        "mapsto",
-        "to",
-        "gets",
-        "lvert",
-        "rvert",
-        "lVert",
-        "rVert",
-        "langle",
-        "rangle",
-        "lceil",
-        "rceil",
-        "lfloor",
-        "rfloor",
-        "lbrace",
-        "rbrace",
-        "left",
-        "right",
-        "overline",
-        "underline",
-        "widehat",
-        "widetilde",
-        "vec",
-        "dot",
-        "ddot",
-        "hat",
-        "tilde",
-        "bar",
-        "breve",
-        "check",
-        "acute",
-        "grave",
-      ];
-      sanitizedText = sanitizedText.replace(
-        /\\\\?([a-zA-Z]+)/g,
-        (match, p1) => {
-          if (mathCommands.includes(p1)) {
-            return "\\\\" + p1;
-          }
-          return match;
-        },
-      );
-      sanitizedText = sanitizedText.replace(/\\\\?([{}])/g, "\\\\$1");
-
       try {
-        // Try to parse as strict JSON
-        const startIdx = sanitizedText.indexOf("[");
-        const startObjIdx = sanitizedText.indexOf("{");
-        const actualStart =
-          startIdx !== -1 && startObjIdx !== -1
-            ? Math.min(startIdx, startObjIdx)
-            : Math.max(startIdx, startObjIdx);
-
-        const endIdx = sanitizedText.lastIndexOf("]");
-        const endObjIdx = sanitizedText.lastIndexOf("}");
-        const actualEnd = Math.max(endIdx, endObjIdx);
-
-        if (actualStart === -1 || actualEnd === -1) {
-          throw new Error("Could not find a valid JSON object or array in the text.");
-        }
-
-        const jsonStr = sanitizedText.substring(actualStart, actualEnd + 1);
-        parsed = JSON.parse(jsonStr);
+        parsed = JSON.parse(rawText);
       } catch (err) {
-        // Fallback: evaluate as JS object if it contains unquoted keys or comments
-        try {
-          let jsStr = sanitizedText;
-          const questionsMatch = sanitizedText.match(
-            /const\s+QUESTIONS\s*=\s*(\[[\s\S]*?\]);/,
-          );
-          if (questionsMatch && questionsMatch[1]) {
-            jsStr = questionsMatch[1];
-          } else {
-            const startIdx = sanitizedText.indexOf("[");
-            const startObjIdx = sanitizedText.indexOf("{");
-            const actualStart =
-              startIdx !== -1 && startObjIdx !== -1
-                ? Math.min(startIdx, startObjIdx)
-                : Math.max(startIdx, startObjIdx);
-
-            const endIdx = sanitizedText.lastIndexOf("]");
-            const endObjIdx = sanitizedText.lastIndexOf("}");
-            const actualEnd = Math.max(endIdx, endObjIdx);
-
-            if (actualStart !== -1 && actualEnd !== -1) {
-              jsStr = sanitizedText.substring(actualStart, actualEnd + 1);
-            }
-          }
-          parsed = new Function(`return ${jsStr}`)();
-        } catch (evalErr) {
-          throw new Error(
-            "Syntax Error: Invalid JSON or JS object format. Please check for missing quotes, brackets, or commas.\nDetails: " + evalErr.message,
-          );
-        }
-      }
-
-      let qs = [];
-      let svgMap = new Map();
-
-      // Look for svg_diagrams in the root
-      if (parsed.svg_diagrams && Array.isArray(parsed.svg_diagrams)) {
-        parsed.svg_diagrams.forEach((svgItem) => {
-          if (svgItem.svg_id && svgItem.svg_code) {
-            svgMap.set(svgItem.svg_id, svgItem.svg_code);
-          }
+        let sanitizedText = rawText;
+        const mathCommands = [
+          "frac", "cdot", "times", "int", "partial", "infty", "begin", "end",
+          "omega", "pi", "Delta", "nabla", "alpha", "beta", "gamma", "theta",
+          "lambda", "mu", "sigma", "phi", "psi", "tau", "rho", "sum", "prod",
+          "lim", "log", "sin", "cos", "tan", "sec", "csc", "cot", "sqrt",
+          "text", "textbf", "emph", "nu", "xi", "zeta", "eta", "iota",
+          "kappa", "chi", "upsilon", "Leftarrow", "Rightarrow", "leftrightarrow",
+          "updownarrow", "Leftrightarrow", "Updownarrow", "rightarrow", "leftarrow",
+          "geq", "leq", "neq", "approx", "equiv", "propto", "pm", "mp",
+          "div", "circ", "bullet", "oplus", "otimes", "vee", "wedge",
+          "cap", "cup", "subset", "supset", "subseteq", "supseteq", "in"
+        ];
+        mathCommands.forEach((cmd) => {
+          const regex = new RegExp(`(?<!\\\\)\\\\${cmd}\\b`, "g");
+          sanitizedText = sanitizedText.replace(regex, `\\\\${cmd}`);
         });
-      }
 
-      // Check format
-      if (
-        parsed.module &&
-        parsed.module.questions &&
-        Array.isArray(parsed.module.questions)
-      ) {
-        if (parsed.module.company) {
-          let titleStr = parsed.module.company;
-          if (parsed.module.module_number)
-            titleStr += ` Module ${parsed.module.module_number}`;
-          setTitle(titleStr.trim());
-        }
-        qs = parsed.module.questions;
-      } else if (parsed.questions && Array.isArray(parsed.questions)) {
-        if (parsed.title) setTitle(parsed.title);
-        if (parsed.description) setDescription(parsed.description);
-        qs = parsed.questions;
-      } else if (Array.isArray(parsed)) {
-        qs = parsed;
-      } else if (
-        typeof parsed === "object" &&
-        parsed !== null &&
-        (parsed.question || parsed.option_svg_ids || parsed.text)
-      ) {
-        qs = [parsed];
-      } else {
-        throw new Error("Invalid structure: Could not find an array of questions in the JSON.");
-      }
-
-      if (qs.length === 0) {
-        throw new Error("The question array is empty. Please provide at least one question.");
-      }
-
-      // Comprehensive validation per question
-      const formattedQs = qs.map((q, idx) => {
-        const qNum = idx + 1;
-
-        // 1. Validate Question Text
-        const questionText = (q.question || q.text || "").trim();
-        if (!questionText) {
-          throw new Error(`Question #${qNum}: Missing or empty question text.`);
-        }
-
-        // 2. Validate Options
-        let parsedOptions = [];
-        if (q.options) {
-          if (Array.isArray(q.options)) {
-            parsedOptions = q.options.map((opt) => String(opt).trim());
-          } else if (typeof q.options === "object") {
-            const keys = Object.keys(q.options).sort();
-            parsedOptions = keys.map((k) => String(q.options[k]).trim());
+        try {
+          parsed = JSON.parse(sanitizedText);
+        } catch (e2) {
+          try {
+            parsed = eval(`(${rawText})`);
+          } catch (e3) {
+            throw new Error(`JSON Syntax Error: Invalid JSON text.\nReason: ${err.message}\nMake sure your text is a valid JSON array starting with '[' and ending with ']'.`);
           }
-        } else if (q.option_svg_ids) {
-          const keys = Object.keys(q.option_svg_ids).sort();
-          parsedOptions = keys.map((k) => {
-            const svgId = q.option_svg_ids[k];
-            if (svgMap.has(svgId)) {
-              const svgMarkup = svgMap.get(svgId) || "";
-              return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgMarkup)))}`;
-            }
-            return q.options && q.options[k]
-              ? q.options[k]
-              : `[Missing SVG: ${svgId}]`;
-          });
+        }
+      }
+
+      if (!Array.isArray(parsed)) {
+        throw new Error(
+          "Validation Error: Bulk upload only accepts a top-level JSON array [ ... ]. Received a single object or non-array format."
+        );
+      }
+
+      if (parsed.length === 0) {
+        throw new Error("Validation Error: Uploaded question array is empty. At least 1 question is required.");
+      }
+
+      const requiredFields = [
+        "id",
+        "type",
+        "difficulty",
+        "topic",
+        "sub_topic",
+        "question",
+        "options",
+        "correct_answer",
+        "correct_option_index",
+      ];
+      const allowedFields = [
+        "id",
+        "type",
+        "difficulty",
+        "topic",
+        "sub_topic",
+        "question",
+        "options",
+        "correct_answer",
+        "correct_option_index",
+        "explanation",
+        "image",
+        "svg_code",
+      ];
+
+      const formattedQs = parsed.map((q, idx) => {
+        const rowNum = idx + 1;
+        const qIdLabel = q && typeof q === "object" && q.id ? ` (${q.id})` : "";
+
+        if (!q || typeof q !== "object" || Array.isArray(q)) {
+          throw new Error(`Row ${rowNum}${qIdLabel}: Item must be a valid JSON object.`);
         }
 
-        if (parsedOptions.length < 2) {
-          throw new Error(`Question #${qNum}: 'options' field must contain at least 2 choices. Found: ${parsedOptions.length}.`);
-        }
+        const keys = Object.keys(q);
 
-        // 3. Validate Correct Answer Index & Keys
-        let numIndexProvided = undefined;
-        if (typeof q.correct_option_index === "number") {
-          numIndexProvided = q.correct_option_index;
-        } else if (typeof q.correctAnswerIndex === "number") {
-          numIndexProvided = q.correctAnswerIndex;
-        } else if (typeof q.correct_answer_index === "number") {
-          numIndexProvided = q.correct_answer_index;
-        } else if (typeof q.answer === "number") {
-          numIndexProvided = q.answer;
-        }
-
-        let textAnswerProvided = undefined;
-        if (q.correct_answer !== undefined || q.correctAnswer !== undefined) {
-          textAnswerProvided = String(q.correct_answer !== undefined ? q.correct_answer : q.correctAnswer).trim();
-        }
-
-        let letterIdx = undefined;
-        if (textAnswerProvided !== undefined) {
-          if (/^\d+$/.test(textAnswerProvided)) {
-            letterIdx = parseInt(textAnswerProvided, 10);
-          } else {
-            const letter = textAnswerProvided.toUpperCase();
-            if (letter === "A" || letter.startsWith("A")) letterIdx = 0;
-            else if (letter === "B" || letter.startsWith("B")) letterIdx = 1;
-            else if (letter === "C" || letter.startsWith("C")) letterIdx = 2;
-            else if (letter === "D" || letter.startsWith("D")) letterIdx = 3;
-            else {
-              const matchedOptIdx = parsedOptions.findIndex(
-                (opt) =>
-                  opt.toLowerCase() === textAnswerProvided.toLowerCase() ||
-                  opt.toLowerCase().includes(textAnswerProvided.toLowerCase())
-              );
-              letterIdx = matchedOptIdx >= 0 ? matchedOptIdx : undefined;
-            }
+        // 1. Missing required fields check
+        for (const field of requiredFields) {
+          if (!(field in q)) {
+            throw new Error(
+              `Row ${rowNum}${qIdLabel}:\nMissing required field "${field}".\nExpected standard fields: ${requiredFields.join(", ")}.`
+            );
+          }
+          if (typeof q[field] === "string" && q[field].trim() === "") {
+            throw new Error(
+              `Row ${rowNum}${qIdLabel}:\nRequired field "${field}" cannot be an empty string.`
+            );
           }
         }
 
+        // 2. Extra/unrecognized fields check
+        const extraKeys = keys.filter((k) => !allowedFields.includes(k));
+        if (extraKeys.length > 0) {
+          throw new Error(
+            `Row ${rowNum}${qIdLabel}:\nExtra/unrecognized field(s) found: "${extraKeys.join('", "')}". Only standard fields are allowed.`
+          );
+        }
+
+        // 3. Options validation (Must be array of EXACTLY 4 non-empty strings)
+        if (!Array.isArray(q.options)) {
+          throw new Error(
+            `Row ${rowNum}${qIdLabel}:\nInvalid "options" data type. Expected an array of 4 option strings.`
+          );
+        }
+        if (q.options.length !== 4) {
+          throw new Error(
+            `Row ${rowNum}${qIdLabel}:\nInvalid "options" count. Expected exactly 4 options, but received ${q.options.length}.`
+          );
+        }
+        for (let oIdx = 0; oIdx < 4; oIdx++) {
+          const optVal = q.options[oIdx];
+          if (typeof optVal !== "string" || optVal.trim() === "") {
+            throw new Error(
+              `Row ${rowNum}${qIdLabel}:\nOption ${String.fromCharCode(65 + oIdx)} (index ${oIdx}) must be a non-empty string.`
+            );
+          }
+        }
+
+        // 4. correct_answer validation (Must be EXACTLY "A", "B", "C", or "D")
+        const validAnswers = ["A", "B", "C", "D"];
+        if (typeof q.correct_answer !== "string" || !validAnswers.includes(q.correct_answer)) {
+          throw new Error(
+            `Row ${rowNum}${qIdLabel}:\nInvalid correct_answer.\nExpected one of: A, B, C, D.\nReceived: ${JSON.stringify(q.correct_answer)}`
+          );
+        }
+
+        // 5. correct_option_index validation (Must be integer 0, 1, 2, or 3)
+        const validIndexes = [0, 1, 2, 3];
         if (
-          numIndexProvided !== undefined &&
-          letterIdx !== undefined &&
-          numIndexProvided !== letterIdx
+          typeof q.correct_option_index !== "number" ||
+          !Number.isInteger(q.correct_option_index) ||
+          !validIndexes.includes(q.correct_option_index)
         ) {
           throw new Error(
-            `Question #${qNum}: Contradictory answers! 'correct_answer': "${textAnswerProvided}" (Index ${letterIdx}) conflicts with 'correct_option_index': ${numIndexProvided}.`
+            `Row ${rowNum}${qIdLabel}:\nInvalid correct_option_index.\nExpected one of: 0, 1, 2, 3.\nReceived: ${JSON.stringify(q.correct_option_index)}`
           );
         }
 
-        const correctIdx =
-          numIndexProvided !== undefined
-            ? numIndexProvided
-            : letterIdx !== undefined
-            ? letterIdx
-            : 0;
-
-        if (correctIdx < 0 || correctIdx >= parsedOptions.length) {
+        // 6. Synchronization check
+        const letterToIdxMap = { A: 0, B: 1, C: 2, D: 3 };
+        const idxToLetterMap = { 0: "A", 1: "B", 2: "C", 3: "D" };
+        const expectedIndex = letterToIdxMap[q.correct_answer];
+        if (q.correct_option_index !== expectedIndex) {
           throw new Error(
-            `Question #${qNum}: Invalid correct answer index (${correctIdx}). Options array length is ${parsedOptions.length}.`
+            `Row ${rowNum}${qIdLabel}:\nMismatched correct_answer and correct_option_index!\n"correct_answer": "${q.correct_answer}" corresponds to index ${expectedIndex}, but "correct_option_index" was set to ${q.correct_option_index} (which corresponds to "${idxToLetterMap[q.correct_option_index]}").`
           );
-        }
-
-        // 4. Diagram / Image processing
-        let imageString = q.image;
-        if (q.diagram_type && q.diagram_code) {
-          imageString = JSON.stringify({
-            diagram_type: q.diagram_type,
-            diagram_code: q.diagram_code,
-          });
-        } else if (q.svg_id && svgMap.has(q.svg_id)) {
-          const svgMarkup = svgMap.get(q.svg_id) || "";
-          imageString = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgMarkup)))}`;
-        } else if (q.diagram) {
-          imageString = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(q.diagram)))}`;
-        } else if (q.svg_code) {
-          imageString = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(q.svg_code)))}`;
-        }
-
-        let fullQuestionText = questionText;
-        if (q.subtext) {
-          fullQuestionText += `\n\n${q.subtext}`;
         }
 
         return {
-          id: q.id || crypto.randomUUID(),
-          question: fullQuestionText,
-          options: parsedOptions,
-          correctAnswerIndex: correctIdx,
-          subject:
-            q.category || q.topic || q.type || q.subject || currentSubject,
-          topic: q.topic || null,
-          subTopic: q.sub_topic || q.subTopic || null,
-          difficulty: q.difficulty || null,
-          image: imageString,
-          explanation: q.explanation || undefined,
+          id: String(q.id).trim(),
+          question: String(q.question).trim(),
+          options: q.options.map((opt) => String(opt).trim()),
+          correctAnswerIndex: q.correct_option_index,
+          correct_answer: q.correct_answer,
+          correct_option_index: q.correct_option_index,
+          subject: String(q.type).trim(),
+          type: String(q.type).trim(),
+          topic: String(q.topic).trim(),
+          subTopic: String(q.sub_topic).trim(),
+          difficulty: String(q.difficulty).trim(),
+          explanation: q.explanation ? String(q.explanation).trim() : undefined,
+          image: q.image || (q.svg_code ? `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(q.svg_code)))}` : undefined),
         };
       });
 
@@ -1826,95 +1725,349 @@ Please generate the requested JSON now.`;
                   Module Questions ({parsedQuestions.length})
                 </h4>
                 <button
-                  onClick={() => setParsedQuestions([])}
-                  className="text-sm text-rose-600 hover:text-rose-500"
+                  onClick={() => {
+                    setParsedQuestions([]);
+                    setQuestionsPage(1);
+                  }}
+                  className="text-sm text-rose-600 hover:text-rose-500 font-bold"
                 >
                   Clear All
                 </button>
               </div>
 
-              <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                {parsedQuestions.map((q, idx) => (
-                  <div
-                    key={q.id}
-                    className="p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="font-medium text-slate-900 dark:text-white flex-1">
-                        <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider mr-2">
-                          {q.subject || "General"}
-                        </span>
-                        <br />
-                        {idx + 1}. <MathText content={q.question} />
-                      </div>
-                      <button
-                        onClick={() =>
-                          setParsedQuestions(
-                            parsedQuestions.filter((pq) => pq.id !== q.id),
-                          )
-                        }
-                        className="text-slate-400 hover:text-red-500 ml-2"
+              {/* Paginated Question List */}
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                {parsedQuestions
+                  .slice(
+                    (questionsPage - 1) * QUESTIONS_PER_PAGE,
+                    questionsPage * QUESTIONS_PER_PAGE
+                  )
+                  .map((q, pIdx) => {
+                    const globalIdx = (questionsPage - 1) * QUESTIONS_PER_PAGE + pIdx;
+                    return (
+                      <div
+                        key={q.id || globalIdx}
+                        className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {q.image && (
-                      <SvgDiagram
-                        svgCode={q.image}
-                        className="max-h-40"
-                        containerClassName="mb-3"
-                      />
-                    )}
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      {q.options.map((opt, oIdx) => (
-                        <div
-                          key={oIdx}
-                          className={`px-3 py-2 rounded-md text-sm flex items-start ${q.correctAnswerIndex === oIdx ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"}`}
-                        >
-                          <span className="mr-1 shrink-0 mt-0.5">
-                            {String.fromCharCode(65 + oIdx)}.
-                          </span>
-                          <div className="flex-1">
-                            {opt.startsWith("data:image/") ||
-                            opt.trim().startsWith("<svg") ? (
-                              <SvgDiagram
-                                svgCode={opt}
-                                className="max-h-24 w-auto object-contain"
-                                containerClassName=""
-                              />
-                            ) : (
-                              <MathText content={opt} />
-                            )}
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="font-medium text-slate-900 dark:text-white flex-1 pr-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider">
+                                {q.subject || q.type || "Technical"}
+                              </span>
+                              {q.difficulty && (
+                                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase">
+                                  {q.difficulty}
+                                </span>
+                              )}
+                              {q.topic && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                                  {q.topic}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-bold text-slate-500 mr-2">{globalIdx + 1}.</span>
+                            <MathText content={q.question} />
+                          </div>
+                          <div className="flex items-center space-x-2 shrink-0">
+                            <button
+                              onClick={() => handleStartEditQuestion(globalIdx)}
+                              className="p-1 px-2 text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-lg transition-colors flex items-center space-x-1 text-xs font-bold border border-indigo-200 dark:border-indigo-800/50"
+                              title="Edit Question & Answer"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                setParsedQuestions(
+                                  parsedQuestions.filter((_, idx) => idx !== globalIdx)
+                                )
+                              }
+                              className="p-1 px-2 text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:text-rose-300 rounded-lg transition-colors flex items-center space-x-1 text-xs font-bold border border-rose-200 dark:border-rose-800/50"
+                              title="Delete Question"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
-                      ))}
-                    </div>
 
-                    <div className="mt-2 flex">
-                      <label className="cursor-pointer inline-flex items-center px-3 py-1.5 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-medium rounded text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                        <ImageIcon className="w-3.5 h-3.5 mr-1.5" />
-                        <span>
-                          {q.image ? "Replace Image" : "Attach Image Diagram"}
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => handleImageUpload(idx, e)}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                ))}
+                        {q.image && (
+                          <SvgDiagram
+                            svgCode={q.image}
+                            className="max-h-40"
+                            containerClassName="mb-3"
+                          />
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                          {q.options.map((opt, oIdx) => (
+                            <div
+                              key={oIdx}
+                              className={`px-3 py-2 rounded-lg text-sm flex items-start ${
+                                q.correctAnswerIndex === oIdx
+                                  ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold"
+                                  : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                              }`}
+                            >
+                              <span className="mr-2 shrink-0 font-bold">
+                                {String.fromCharCode(65 + oIdx)}.
+                              </span>
+                              <div className="flex-1">
+                                {opt.startsWith("data:image/") || opt.trim().startsWith("<svg") ? (
+                                  <SvgDiagram
+                                    svgCode={opt}
+                                    className="max-h-24 w-auto object-contain"
+                                    containerClassName=""
+                                  />
+                                ) : (
+                                  <MathText content={opt} />
+                                )}
+                              </div>
+                              {q.correctAnswerIndex === oIdx && (
+                                <span className="ml-2 text-xs font-extrabold text-emerald-600 dark:text-emerald-400">
+                                  ✓ (Correct)
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-2 flex items-center justify-between pt-1 text-xs text-slate-500">
+                          <label className="cursor-pointer inline-flex items-center px-2.5 py-1 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-medium rounded-md text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                            <ImageIcon className="w-3.5 h-3.5 mr-1.5" />
+                            <span>{q.image ? "Replace Image" : "Attach Diagram"}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleImageUpload(globalIdx, e)}
+                            />
+                          </label>
+                          <span className="font-semibold text-slate-400">
+                            ID: {q.id || `Q_${globalIdx + 1}`}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
+
+              {/* Question Pagination Controls */}
+              {parsedQuestions.length > QUESTIONS_PER_PAGE && (
+                <div className="flex items-center justify-between px-2 py-2 border-t border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-600 dark:text-slate-400">
+                  <span>
+                    Showing { (questionsPage - 1) * QUESTIONS_PER_PAGE + 1 } - { Math.min(questionsPage * QUESTIONS_PER_PAGE, parsedQuestions.length) } of { parsedQuestions.length } questions
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      disabled={questionsPage === 1}
+                      onClick={() => setQuestionsPage((prev) => Math.max(1, prev - 1))}
+                      className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      Page {questionsPage} of {Math.ceil(parsedQuestions.length / QUESTIONS_PER_PAGE)}
+                    </span>
+                    <button
+                      disabled={questionsPage >= Math.ceil(parsedQuestions.length / QUESTIONS_PER_PAGE)}
+                      onClick={() => setQuestionsPage((prev) => Math.min(Math.ceil(parsedQuestions.length / QUESTIONS_PER_PAGE), prev + 1))}
+                      className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={handleSaveModule}
-                className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none transition-colors"
+                className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none transition-colors mt-4"
               >
                 <CheckCircle2 className="w-5 h-5 mr-2" />
                 {editingModuleId ? "Update Module" : "Publish Module"}
               </button>
+            </div>
+          )}
+
+          {/* Edit Question Modal with Auto-Sync */}
+          {editingQuestionIndex !== null && (
+            <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Edit className="w-5 h-5 text-indigo-500" />
+                    Edit Question #{editingQuestionIndex + 1}
+                  </h3>
+                  <button
+                    onClick={() => setEditingQuestionIndex(null)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                  {/* Question Text */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      Question Text
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={editingQuestionForm.question}
+                      onChange={(e) =>
+                        setEditingQuestionForm({ ...editingQuestionForm, question: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+
+                  {/* 4 Options */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      Options (Exactly 4)
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {["A", "B", "C", "D"].map((letter, oIdx) => (
+                        <div key={letter} className="flex items-center space-x-2">
+                          <span className="w-6 text-xs font-extrabold text-slate-500 text-center">
+                            {letter}.
+                          </span>
+                          <input
+                            type="text"
+                            value={editingQuestionForm.options[oIdx]}
+                            onChange={(e) => {
+                              const opts = [...editingQuestionForm.options];
+                              opts[oIdx] = e.target.value;
+                              setEditingQuestionForm({ ...editingQuestionForm, options: opts });
+                            }}
+                            className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Synced Correct Answer & Option Index */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-indigo-50/50 dark:bg-indigo-950/20 p-3.5 rounded-xl border border-indigo-100 dark:border-indigo-900/40">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                        Correct Answer (A, B, C, D)
+                      </label>
+                      <select
+                        value={editingQuestionForm.correct_answer}
+                        onChange={(e) => handleEditQuestionAnswerChange(e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold"
+                      >
+                        <option value="A">Option A</option>
+                        <option value="B">Option B</option>
+                        <option value="C">Option C</option>
+                        <option value="D">Option D</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                        Correct Option Index (0, 1, 2, 3)
+                      </label>
+                      <select
+                        value={editingQuestionForm.correct_option_index}
+                        onChange={(e) => handleEditQuestionIndexChange(parseInt(e.target.value, 10))}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold"
+                      >
+                        <option value={0}>Index 0 (Option A)</option>
+                        <option value={1}>Index 1 (Option B)</option>
+                        <option value={2}>Index 2 (Option C)</option>
+                        <option value={3}>Index 3 (Option D)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Metadata Fields */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Difficulty
+                      </label>
+                      <select
+                        value={editingQuestionForm.difficulty}
+                        onChange={(e) =>
+                          setEditingQuestionForm({ ...editingQuestionForm, difficulty: e.target.value })
+                        }
+                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      >
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Topic
+                      </label>
+                      <input
+                        type="text"
+                        value={editingQuestionForm.topic}
+                        onChange={(e) =>
+                          setEditingQuestionForm({ ...editingQuestionForm, topic: e.target.value })
+                        }
+                        placeholder="e.g. Fundamentals"
+                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Sub Topic
+                      </label>
+                      <input
+                        type="text"
+                        value={editingQuestionForm.subTopic}
+                        onChange={(e) =>
+                          setEditingQuestionForm({ ...editingQuestionForm, subTopic: e.target.value })
+                        }
+                        placeholder="e.g. Ohm's Law"
+                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Type / Subject
+                    </label>
+                    <input
+                      type="text"
+                      value={editingQuestionForm.type}
+                      onChange={(e) =>
+                        setEditingQuestionForm({ ...editingQuestionForm, type: e.target.value })
+                      }
+                      placeholder="e.g. Technical"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex justify-end space-x-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <button
+                    onClick={() => setEditingQuestionIndex(null)}
+                    className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEditedQuestion}
+                    className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-md flex items-center space-x-1.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Save Question Changes</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

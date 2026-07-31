@@ -321,6 +321,11 @@ async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_questions_module_id ON questions(module_id);
       CREATE INDEX IF NOT EXISTS idx_modules_module_type ON modules(module_type);
       CREATE INDEX IF NOT EXISTS idx_modules_parent_id ON modules(parent_id);
+      CREATE INDEX IF NOT EXISTS idx_modules_type_parent ON modules(module_type, parent_id);
+      CREATE INDEX IF NOT EXISTS idx_modules_display_order ON modules(display_order);
+      CREATE INDEX IF NOT EXISTS idx_questions_module_order ON questions(module_id, display_order);
+      CREATE INDEX IF NOT EXISTS idx_companies_display_order ON companies(display_order);
+      CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_type ON hierarchy_nodes(parent_id, type);
       CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
       CREATE INDEX IF NOT EXISTS idx_scores_module_id ON scores(module_id);
       CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_id ON hierarchy_nodes(parent_id);
