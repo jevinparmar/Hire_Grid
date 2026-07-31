@@ -1689,6 +1689,36 @@ export default function StudentDashboard() {
                                     )}
                                   </div>
                                   <div className="flex-1">
+                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                      {q.difficulty && (
+                                        <span
+                                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                            q.difficulty.toLowerCase() === "easy"
+                                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700"
+                                              : q.difficulty.toLowerCase() === "medium"
+                                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-300 dark:border-amber-700"
+                                              : "bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300 border border-rose-300 dark:border-rose-700"
+                                          }`}
+                                        >
+                                          {q.difficulty}
+                                        </span>
+                                      )}
+                                      {q.topic && (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 uppercase tracking-wider">
+                                          {q.topic}
+                                        </span>
+                                      )}
+                                      {(q.subTopic || q.sub_topic) && (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 uppercase tracking-wider">
+                                          {q.subTopic || q.sub_topic}
+                                        </span>
+                                      )}
+                                      {q.subject && !q.topic && (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 uppercase tracking-wider">
+                                          {q.subject}
+                                        </span>
+                                      )}
+                                    </div>
                                     <div className="font-bold text-slate-800 dark:text-slate-200 mb-4">
                                       {qIdx + 1}.{" "}
                                       <MathText content={q.question} />
@@ -1962,16 +1992,36 @@ export default function StudentDashboard() {
 
                         <div className="flex items-start justify-between mb-6">
                           <div className="text-lg text-slate-800 dark:text-slate-200 font-medium leading-relaxed flex-1">
-                            {activeModule.questions[currentQuestionIndex]
-                              .subject && (
-                              <span className="inline-block mb-3 px-2 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-700 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider rounded">
-                                {
-                                  activeModule.questions[currentQuestionIndex]
-                                    .subject
-                                }
-                              </span>
-                            )}
-                            <br />
+                            <div className="flex flex-wrap items-center gap-2 mb-3">
+                              {activeModule.questions[currentQuestionIndex].difficulty && (
+                                <span
+                                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                                    activeModule.questions[currentQuestionIndex].difficulty.toLowerCase() === "easy"
+                                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700"
+                                      : activeModule.questions[currentQuestionIndex].difficulty.toLowerCase() === "medium"
+                                      ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-300 dark:border-amber-700"
+                                      : "bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300 border border-rose-300 dark:border-rose-700"
+                                  }`}
+                                >
+                                  {activeModule.questions[currentQuestionIndex].difficulty}
+                                </span>
+                              )}
+                              {activeModule.questions[currentQuestionIndex].topic && (
+                                <span className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 uppercase tracking-wider">
+                                  {activeModule.questions[currentQuestionIndex].topic}
+                                </span>
+                              )}
+                              {(activeModule.questions[currentQuestionIndex].subTopic || activeModule.questions[currentQuestionIndex].sub_topic) && (
+                                <span className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 uppercase tracking-wider">
+                                  {activeModule.questions[currentQuestionIndex].subTopic || activeModule.questions[currentQuestionIndex].sub_topic}
+                                </span>
+                              )}
+                              {activeModule.questions[currentQuestionIndex].subject && !activeModule.questions[currentQuestionIndex].topic && (
+                                <span className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 uppercase tracking-wider">
+                                  {activeModule.questions[currentQuestionIndex].subject}
+                                </span>
+                              )}
+                            </div>
                             <MathText
                               content={
                                 activeModule.questions[currentQuestionIndex]
