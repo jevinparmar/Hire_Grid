@@ -195,11 +195,18 @@ exports.saveModules = async (req, res) => {
         await pool.query("DELETE FROM questions WHERE module_id = $1", [m.id]);
         for (let i = 0; i < m.questions.length; i++) {
           const q = m.questions[i];
-          const qId = q.id || crypto.randomUUID();
+          const qId = (q.id && typeof q.id === "string" && q.id.length > 20) ? q.id : crypto.randomUUID();
           await pool.query(
             `INSERT INTO questions (
               id, module_id, question, options, correct_answer_index, svg_code, display_order
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (id) DO UPDATE
+            SET module_id = EXCLUDED.module_id,
+                question = EXCLUDED.question,
+                options = EXCLUDED.options,
+                correct_answer_index = EXCLUDED.correct_answer_index,
+                svg_code = EXCLUDED.svg_code,
+                display_order = EXCLUDED.display_order`,
             [
               qId,
               m.id,
