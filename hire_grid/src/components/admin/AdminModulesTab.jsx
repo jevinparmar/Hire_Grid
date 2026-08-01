@@ -214,9 +214,7 @@ export function AdminModulesTab({
           return (a.createdAt || 0) - (b.createdAt || 0);
         });
 
-        if (mods.length > 0) {
-          setModules(mods);
-        }
+        setModules(mods);
       },
       (error) => handleFirestoreError(error, OperationType.LIST, "modules"),
     );
@@ -733,6 +731,7 @@ export function AdminModulesTab({
       setAccessMode("inherit");
       setAccessType("free");
       setPrice(0);
+      await fetchModules();
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, "modules");
       const errMsg = err.message || "Failed to save module to database.";
@@ -823,6 +822,7 @@ export function AdminModulesTab({
       setAccessMode("inherit");
       setAccessType("free");
       setPrice(0);
+      await fetchModules();
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, "modules");
       const errMsg = err.message || "Failed to save master module to database.";
