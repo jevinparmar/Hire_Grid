@@ -1897,15 +1897,22 @@ export default function StudentDashboard() {
                             Total Marks
                           </span>
                           <span className="text-2xl font-black text-slate-800 dark:text-slate-200">
-                            {activeModule.totalMarks ||
-                              activeModule.questions.reduce(
-                                (sum, q) =>
-                                  sum +
-                                  (q.positiveMarksOverride !== undefined
-                                    ? q.positiveMarksOverride
-                                    : activeModule.marksPerQuestion || 1),
-                                0,
-                              )}
+                            {activeModule.totalMarks !== undefined &&
+                            activeModule.totalMarks !== null &&
+                            activeModule.totalMarks !== ""
+                              ? Number(activeModule.totalMarks)
+                              : (activeModule.questions || []).reduce(
+                                  (sum, q) =>
+                                    sum +
+                                    Number(
+                                      q.positiveMarksOverride !== undefined &&
+                                        q.positiveMarksOverride !== null &&
+                                        q.positiveMarksOverride !== ""
+                                        ? q.positiveMarksOverride
+                                        : activeModule.marksPerQuestion || 1,
+                                    ),
+                                  0,
+                                )}
                           </span>
                         </div>
                         <div className="flex flex-col items-center">
@@ -1913,10 +1920,13 @@ export default function StudentDashboard() {
                             Marking Scheme
                           </span>
                           <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
-                            +{activeModule.marksPerQuestion || 1} / -
-                            {activeModule.negativeMarks !== undefined
-                              ? activeModule.negativeMarks
-                              : 0.5}
+                            +{Number(activeModule.marksPerQuestion || 1)} / -
+                            {Number(
+                              activeModule.negativeMarks !== undefined &&
+                                activeModule.negativeMarks !== null
+                                ? activeModule.negativeMarks
+                                : 0.5,
+                            )}
                           </span>
                         </div>
                         <div className="flex flex-col items-center">
