@@ -1897,22 +1897,31 @@ export default function StudentDashboard() {
                             Total Marks
                           </span>
                           <span className="text-2xl font-black text-slate-800 dark:text-slate-200">
-                            {activeModule.totalMarks !== undefined &&
-                            activeModule.totalMarks !== null &&
-                            activeModule.totalMarks !== ""
-                              ? Number(activeModule.totalMarks)
-                              : (activeModule.questions || []).reduce(
-                                  (sum, q) =>
-                                    sum +
-                                    Number(
-                                      q.positiveMarksOverride !== undefined &&
-                                        q.positiveMarksOverride !== null &&
-                                        q.positiveMarksOverride !== ""
-                                        ? q.positiveMarksOverride
-                                        : activeModule.marksPerQuestion || 1,
-                                    ),
-                                  0,
-                                )}
+                            {(() => {
+                              const tm = Number(activeModule.totalMarks);
+                              if (
+                                activeModule.totalMarks !== undefined &&
+                                activeModule.totalMarks !== null &&
+                                activeModule.totalMarks !== "" &&
+                                !isNaN(tm) &&
+                                tm > 0
+                              ) {
+                                return tm;
+                              }
+                              return (activeModule.questions || []).reduce(
+                                (sum, q) => {
+                                  const val = Number(
+                                    q.positiveMarksOverride !== undefined &&
+                                      q.positiveMarksOverride !== null &&
+                                      q.positiveMarksOverride !== ""
+                                      ? q.positiveMarksOverride
+                                      : activeModule.marksPerQuestion || 1,
+                                  );
+                                  return sum + (isNaN(val) ? 1 : val);
+                                },
+                                0,
+                              );
+                            })()}
                           </span>
                         </div>
                         <div className="flex flex-col items-center">
