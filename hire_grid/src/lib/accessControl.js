@@ -16,19 +16,26 @@ export const hasAccess = (
   if (!item) return false;
 
   const currentAccessMode = item.accessMode || "inherit";
-  let effectiveAccessType =
-    item.accessType || (item.isPremium ? "premium_only" : "free");
+  let effectiveAccessType = "free";
+  if (item.accessType && item.accessType !== "free") {
+    effectiveAccessType = item.accessType;
+  } else if (item.isPremium) {
+    effectiveAccessType = "premium_only";
+  }
 
   // 1. Inherit Mode (Modules)
   if (itemType === "module" && currentAccessMode === "inherit") {
     effectiveAccessType = "free"; // default
-    if (path.length > 0) {
+    if (path && path.length > 0) {
       // Find the closest valid premium/purchasable parent
       for (let i = path.length - 1; i >= 0; i--) {
         const p = path[i];
-        if (p.node) {
+        const pNode = p.node || (p.id ? p : null);
+        if (pNode) {
           const pAccessType =
-            p.node.accessType || (p.node.isPremium ? "premium_only" : "free");
+            (pNode.accessType && pNode.accessType !== "free")
+              ? pNode.accessType
+              : (pNode.isPremium ? "premium_only" : "free");
           if (pAccessType !== "free" && pAccessType !== "demo") {
             effectiveAccessType = pAccessType;
             break;

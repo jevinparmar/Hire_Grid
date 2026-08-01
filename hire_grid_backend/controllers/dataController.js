@@ -26,9 +26,10 @@ const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DES
         else if (op === '<') sqlOp = '<';
         
         // Map camelCase fields to snake_case for DB columns if necessary
-        const dbField = field === 'parentId' ? 'parent_id' : 
+        const colName = field === 'parentId' ? 'parent_id' : 
                         field === 'moduleType' ? 'module_type' :
                         field === 'accessType' ? 'access_type' : field;
+        const dbField = sql.includes('FROM modules m') ? `m.${colName}` : colName;
                         
         if (val === 'null' || val === 'undefined') {
           if (sqlOp === '=') {

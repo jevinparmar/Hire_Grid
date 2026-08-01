@@ -175,6 +175,17 @@ export function StudentHierarchyView({ currentUser, onOpenModule }) {
   };
 
   const handleNodeClick = (node) => {
+    const access = hasAccess(node);
+    if (!access) {
+      const pkg = getClosestPackage(node);
+      if (pkg) {
+        setPreviewPackageItem(pkg);
+      } else {
+        alert("This category is locked under premium. Please subscribe to unlock access.");
+      }
+      return;
+    }
+
     let nextType = "module";
     if (node.type === "general_branch") nextType = "general_subject";
     else if (node.type === "general_subject") nextType = "general_topic";

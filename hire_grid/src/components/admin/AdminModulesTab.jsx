@@ -660,8 +660,8 @@ export function AdminModulesTab({
   };
 
   const handleSaveModule = async () => {
-    if (!title || parsedQuestions.length === 0) {
-      setError("Title and at least one question are required.");
+    if (!title) {
+      setError("Title is required.");
       return;
     }
 
@@ -672,6 +672,7 @@ export function AdminModulesTab({
 
     const newModule = JSON.parse(
       JSON.stringify({
+        id: moduleId,
         title,
         description,
         category,
@@ -702,7 +703,7 @@ export function AdminModulesTab({
     );
 
     try {
-      await api.post("/modules", newModule).catch((e) => console.error("API module save error:", e));
+      await api.post("/modules", newModule);
       await setDoc(doc(db, "modules", moduleId), newModule).catch(() => {});
 
       await setDoc(doc(db, "notifications", getSafeUUID()), {
@@ -765,6 +766,7 @@ export function AdminModulesTab({
 
     const newModule = JSON.parse(
       JSON.stringify({
+        id: moduleId,
         title,
         description,
         category,
@@ -793,7 +795,7 @@ export function AdminModulesTab({
     );
 
     try {
-      await api.post("/modules", newModule).catch((e) => console.error("API module save error:", e));
+      await api.post("/modules", newModule);
       await setDoc(doc(db, "modules", moduleId), newModule).catch(() => {});
 
       await setDoc(doc(db, "notifications", getSafeUUID()), {

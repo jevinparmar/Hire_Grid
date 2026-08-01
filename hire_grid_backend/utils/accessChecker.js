@@ -58,19 +58,26 @@ async function verifyUserItemAccess(userId, itemId, itemType = "module") {
   // 4. Check if Item is Free or Demo
   if (item) {
     const accessMode = item.access_mode || "inherit";
-    let accessType = item.access_type || (item.is_premium ? "premium_only" : "free");
+    let accessType = "free";
+    if (item.access_type && item.access_type !== "free") {
+      accessType = item.access_type;
+    } else if (item.is_premium) {
+      accessType = "premium_only";
+    }
 
     if (itemType === "module" && accessMode === "inherit" && item.parent_id) {
-      const parentComp = await pool.query("SELECT access_type, is_premium FROM companies WHERE id = $1", [item.parent_id]);
-      if (parentComp.rows.length > 0) {
-        const pAcc = parentComp.rows[0].access_type || (parentComp.rows[0].is_premium ? "premium_only" : "free");
+      const parentRes = await pool.query(
+        "SELECT access_type, is_premium FROM companies WHERE id = $1 UNION SELECT access_type, is_premium FROM hierarchy_nodes WHERE id = $1",
+        [item.parent_id]
+      );
+      if (parentRes.rows.length > 0) {
+        const pRow = parentRes.rows[0];
+        const pAcc = (pRow.access_type && pRow.access_type !== "free")
+          ? pRow.access_type
+          : (pRow.is_premium ? "premium_only" : "free");
         if (pAcc !== "free" && pAcc !== "demo") {
           accessType = pAcc;
-        } else {
-          accessType = "free";
         }
-      } else {
-        accessType = "free";
       }
     }
 
