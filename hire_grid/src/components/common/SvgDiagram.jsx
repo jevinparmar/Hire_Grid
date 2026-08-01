@@ -80,9 +80,8 @@ export function SvgDiagram({
   className = "max-h-[300px]",
   containerClassName = "mb-5",
 }) {
-  if (!svgCode) return null;
-
   const content = useMemo(() => {
+    if (!svgCode) return null;
     try {
       // Check if it's our new JSON format for Mermaid/Circuitikz
       const parsed = JSON.parse(svgCode);
@@ -113,6 +112,8 @@ export function SvgDiagram({
       return { type: "image", data: svgCode }; // Fallback
     }
   }, [svgCode]);
+
+  if (!content) return null;
 
   if (content.type === "mermaid") {
     return (

@@ -133,7 +133,8 @@ export function AdminCompaniesTab({
 
   const handleSave = async () => {
     if (!name) return;
-    const companyId = editingCompanyId || crypto.randomUUID();
+    const safeUUID = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substring(2)));
+    const companyId = editingCompanyId || safeUUID();
     const existing = companies.find((c) => c.id === editingCompanyId);
 
     try {

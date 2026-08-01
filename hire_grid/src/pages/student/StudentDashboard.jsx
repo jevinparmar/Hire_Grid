@@ -144,7 +144,10 @@ export default function StudentDashboard() {
         path = [{ node: activeExam, type: "exam" }];
       }
     }
-    return hasAccess(item, type, currentUserDoc, path);
+    const activePlan = currentUserDoc?.activePlanId
+      ? plans.find((p) => p.id === currentUserDoc.activePlanId)
+      : null;
+    return hasAccess(item, type, currentUserDoc, path, activePlan);
   };
 
   const hasAccessToCompany = (company) => hasItemAccess(company, "company");

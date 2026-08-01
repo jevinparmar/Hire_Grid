@@ -1,4 +1,5 @@
 export const normalizeItemType = (type) => {
+  if (!type) return "module";
   if (type.includes("subject")) return "general_subject";
   if (type.includes("topic")) return "general_topic";
   if (type.includes("branch")) return "general_branch";
@@ -10,6 +11,7 @@ export const hasAccess = (
   itemType,
   currentUser,
   path = [], // Optional path to resolve inherit mode and ancestor plan inclusions
+  activePlan = null, // User's active plan object
 ) => {
   if (!item) return false;
 
@@ -36,7 +38,7 @@ export const hasAccess = (
     }
   }
 
-  // 2. Free or Demo
+  // 2. Free or Demo content is always unlocked
   if (effectiveAccessType === "free" || effectiveAccessType === "demo") {
     return true;
   }
@@ -55,6 +57,7 @@ export const hasAccess = (
   else if (normType === "general_branch")
     accessMap = currentUser.grantedExamAccess;
   else if (normType === "module") accessMap = currentUser.grantedModuleAccess;
+
   if (accessMap && accessMap[item.id] !== undefined) {
     const expiry = accessMap[item.id];
     if (expiry === null || Date.now() <= expiry) {
@@ -62,7 +65,7 @@ export const hasAccess = (
     }
   }
 
-  // Check if any ancestor is purchased
+  // Check if any ancestor is explicitly granted
   for (const p of path) {
     if (!p.node) continue;
     const pNormType = normalizeItemType(p.node.type || p.type);
@@ -90,7 +93,7 @@ export const hasAccess = (
     return true;
   }
 
-  // 5. Admin Granted Global Access (Full Premium)
+  // 4. Admin Granted Global Access (Full Premium)
   if (
     effectiveAccessType !== "purchasable_only" &&
     effectiveAccessType !== "access_request_only" &&
@@ -102,6 +105,51 @@ export const hasAccess = (
       Date.now() <= currentUser.fullPremiumExpiry
     ) {
       return true;
+    }
+  }
+
+  // 5. Active Plan Access Validation
+  if (activePlan && currentUser.activePlanId) {
+    const isPlanActive = activePlan.isActive !== false;
+    const isNotExpired =
+      !currentUser.planExpiry || Date.now() <= Number(currentUser.planExpiry);
+
+    if (isPlanActive && isNotExpired) {
+      const companyModules = activePlan.companyModules || activePlan.company_modules || [];
+      const learningContent = activePlan.learningContent || activePlan.learning_content || [];
+      const freeDemoModules = activePlan.freeDemoModules || activePlan.free_demo_modules || [];
+
+      // A. Company Check
+      if (normType === "company") {
+        if (companyModules.includes(item.id)) return true;
+      }
+
+      // B. Module Check
+      if (normType === "module") {
+        if (freeDemoModules.includes(item.id)) return true;
+        if (learningContent.includes(item.id)) return true;
+        if (item.parentId && (companyModules.includes(item.parentId) || learningContent.includes(item.parentId))) return true;
+
+        for (const p of path) {
+          if (p.node && (companyModules.includes(p.node.id) || learningContent.includes(p.node.id))) {
+            return true;
+          }
+        }
+      }
+
+      // C. Node Check (Branch, Subject, Topic)
+      if (
+        normType === "general_branch" ||
+        normType === "general_subject" ||
+        normType === "general_topic"
+      ) {
+        if (learningContent.includes(item.id)) return true;
+        for (const p of path) {
+          if (p.node && learningContent.includes(p.node.id)) {
+            return true;
+          }
+        }
+      }
     }
   }
 

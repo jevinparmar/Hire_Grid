@@ -8,8 +8,16 @@ import { AdminFeedbacksTab } from "../../components/admin/AdminFeedbacksTab";
 export default function ContentManagerDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
-  const role = location.state?.role;
-  const userName = location.state?.name || "Content Manager";
+  const savedUserStr = localStorage.getItem("user");
+  let savedUser = null;
+  try {
+    savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
+  } catch (e) {
+    console.error("Failed to parse user from localStorage", e);
+  }
+
+  const role = location.state?.role || savedUser?.role;
+  const userName = location.state?.name || savedUser?.name || "Content Manager";
 
   const [activeTab, setActiveTab] = useState("company-modules");
 
@@ -18,6 +26,8 @@ export default function ContentManagerDashboard() {
   }
 
   const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     navigate("/");
   };
 

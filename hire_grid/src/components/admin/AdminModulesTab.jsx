@@ -23,6 +23,11 @@ import { SortableList } from "../common/SortableList";
 
 import { logAudit } from "../../auditLogger";
 
+const getSafeUUID = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Date.now().toString(36) + Math.random().toString(36).substring(2);
+
 export function AdminModulesTab({
   moduleType = "general",
   parentId = undefined,
@@ -329,7 +334,7 @@ export function AdminModulesTab({
         }
 
         return {
-          id: crypto.randomUUID(),
+          id: getSafeUUID(),
           question: q.question,
           options: parsedOptions,
           correctAnswerIndex: correctIdx,
@@ -401,7 +406,7 @@ export function AdminModulesTab({
       return;
     }
     const newQ = {
-      id: crypto.randomUUID(),
+      id: getSafeUUID(),
       question: manualQuestion.question,
       options: manualQuestion.options,
       correctAnswerIndex: manualQuestion.correctAnswerIndex,
@@ -662,7 +667,7 @@ export function AdminModulesTab({
       return;
     }
 
-    const moduleId = editingModuleId || crypto.randomUUID();
+    const moduleId = editingModuleId || getSafeUUID();
     const existing = editingModuleId
       ? modules.find((x) => x.id === editingModuleId)
       : null;
@@ -702,7 +707,7 @@ export function AdminModulesTab({
       await api.post("/modules", newModule).catch((e) => console.error("API module save error:", e));
       await setDoc(doc(db, "modules", moduleId), newModule).catch(() => {});
 
-      await setDoc(doc(db, "notifications", crypto.randomUUID()), {
+      await setDoc(doc(db, "notifications", getSafeUUID()), {
         title: editingModuleId ? "Module Updated" : "New Module Available",
         message: `The module "${title}" has been ${editingModuleId ? "updated" : "published"}.`,
         createdAt: Date.now(),
@@ -754,7 +759,7 @@ export function AdminModulesTab({
         questions: m.questions,
       }));
 
-    const moduleId = editingModuleId || crypto.randomUUID();
+    const moduleId = editingModuleId || getSafeUUID();
     const existing = editingModuleId
       ? modules.find((x) => x.id === editingModuleId)
       : null;
@@ -792,7 +797,7 @@ export function AdminModulesTab({
       await api.post("/modules", newModule).catch((e) => console.error("API module save error:", e));
       await setDoc(doc(db, "modules", moduleId), newModule).catch(() => {});
 
-      await setDoc(doc(db, "notifications", crypto.randomUUID()), {
+      await setDoc(doc(db, "notifications", getSafeUUID()), {
         title: editingModuleId
           ? "Master Module Updated"
           : "New Master Module Available",

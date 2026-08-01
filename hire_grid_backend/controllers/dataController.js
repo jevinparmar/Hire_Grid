@@ -1,6 +1,7 @@
 const { pool } = require("../config/db");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
+const { verifyUserItemAccess } = require("../utils/accessChecker");
 
 const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DESC') => {
   let sql = baseQuery;
@@ -237,6 +238,11 @@ exports.submitScore = async (req, res) => {
   }
 
   try {
+    const accessCheck = await verifyUserItemAccess(studentId, moduleId, "module");
+    if (!accessCheck.allowed) {
+      return res.status(403).json({ error: accessCheck.reason || "Access locked under current plan." });
+    }
+
     await pool.query("BEGIN");
     // 1. Save score
     const scoreId = crypto.randomUUID();
@@ -1172,7 +1178,14 @@ exports.deleteFeedback = async (req, res) => {
 
 exports.getModuleQuestions = async (req, res) => {
   const { id } = req.params;
+  const userId = req.user ? req.user.id : null;
   try {
+    if (userId) {
+      const accessCheck = await verifyUserItemAccess(userId, id, "module");
+      if (!accessCheck.allowed) {
+        return res.status(403).json({ error: accessCheck.reason || "Module access locked under current plan." });
+      }
+    }
     const result = await pool.query(
       `SELECT id, question, options, correct_answer_index AS "correctAnswerIndex", svg_code AS "svgCode", display_order AS "displayOrder"
        FROM questions

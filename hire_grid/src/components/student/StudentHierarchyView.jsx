@@ -158,9 +158,20 @@ export function StudentHierarchyView({ currentUser, onOpenModule }) {
     };
   }, [currentNodeInfo]);
 
+  const [plans, setPlans] = useState([]);
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, "plans")), (snap) => {
+      setPlans(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
   const hasAccess = (item, isModule = false) => {
     let type = isModule ? "module" : item.type;
-    return globalHasAccess(item, type, currentUser, path);
+    const activePlan = currentUser?.activePlanId
+      ? plans.find((p) => p.id === currentUser.activePlanId)
+      : null;
+    return globalHasAccess(item, type, currentUser, path, activePlan);
   };
 
   const handleNodeClick = (node) => {
