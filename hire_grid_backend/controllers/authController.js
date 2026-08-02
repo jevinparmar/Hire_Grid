@@ -88,9 +88,9 @@ exports.signup = async (req, res) => {
       targetTable = "admin_users";
     }
 
-    // 1. Check if user already exists
+    // 1. Check if user already exists (selecting id only for speed)
     const checkUser = await pool.query(
-      `SELECT * FROM ${targetTable} WHERE email = $1`,
+      `SELECT id FROM ${targetTable} WHERE email = $1`,
       [email.toLowerCase()]
     );
 
@@ -226,31 +226,35 @@ exports.login = async (req, res) => {
 
     if (isAdminLogin) {
       if (!email || email.trim() === "") {
-        // Password-only login (for super admin)
-        const adminsResult = await pool.query(`SELECT * FROM admin_users`);
+        // Password-only login (check super admin first)
+        let adminsResult = await pool.query(`SELECT * FROM admin_users WHERE email = 'saumya@admin.com' LIMIT 1`);
+        if (adminsResult.rows.length === 0) {
+          adminsResult = await pool.query(`SELECT * FROM admin_users`);
+        }
         let matchedUser = null;
         
-        const checkResults = await Promise.all(
-          adminsResult.rows.map(async (row) => {
-            const isMatch = await bcrypt.compare(password, row.password);
-            return isMatch ? row : null;
-          })
-        );
-        
-        matchedUser = checkResults.find((u) => u !== null) || null;
+        for (const row of adminsResult.rows) {
+          const isMatch = await bcrypt.compare(password, row.password);
+          if (isMatch) {
+            matchedUser = row;
+            break;
+          }
+        }
 
         if (!matchedUser) {
           return res.status(401).json({ error: "Invalid password." });
         }
         user = matchedUser;
       } else {
-        // Email + Password login (e.g. for Content Managers and admins with email)
+        // Email + Password login (single UNION ALL query for admin_users & content_managers)
         const emailLower = email.trim().toLowerCase();
-        let queryResult = await pool.query(`SELECT * FROM admin_users WHERE email = $1`, [emailLower]);
-        
-        if (queryResult.rows.length === 0) {
-          queryResult = await pool.query(`SELECT * FROM content_managers WHERE email = $1`, [emailLower]);
-        }
+        const queryResult = await pool.query(
+          `SELECT * FROM admin_users WHERE email = $1
+           UNION ALL
+           SELECT * FROM content_managers WHERE email = $2
+           LIMIT 1`,
+          [emailLower, emailLower]
+        );
 
         if (queryResult.rows.length === 0) {
           return res.status(401).json({ error: "Invalid email or password." });

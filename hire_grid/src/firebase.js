@@ -291,7 +291,7 @@ export function onSnapshot(queryRef, onNext, onError) {
   activeListeners.add(listenerObj);
 
   fetchAndCallback();
-  const intervalId = setInterval(fetchAndCallback, 15000);
+  const intervalId = setInterval(fetchAndCallback, 30000);
 
   return () => {
     active = false;

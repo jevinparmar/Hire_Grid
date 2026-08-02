@@ -318,6 +318,10 @@ async function initDb() {
     }
 
      await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_content_managers_email ON content_managers(email);
+
       CREATE INDEX IF NOT EXISTS idx_questions_module_id ON questions(module_id);
       CREATE INDEX IF NOT EXISTS idx_modules_module_type ON modules(module_type);
       CREATE INDEX IF NOT EXISTS idx_modules_parent_id ON modules(parent_id);
@@ -328,6 +332,7 @@ async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_type ON hierarchy_nodes(parent_id, type);
       CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
       CREATE INDEX IF NOT EXISTS idx_scores_module_id ON scores(module_id);
+      CREATE INDEX IF NOT EXISTS idx_scores_student_module ON scores(student_id, module_id);
       CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_id ON hierarchy_nodes(parent_id);
       CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_type ON hierarchy_nodes(type);
       CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
