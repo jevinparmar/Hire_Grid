@@ -53,6 +53,10 @@ const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DES
     }
   }
 
+  if (sql.includes('LEFT JOIN questions q')) {
+    sql += ' GROUP BY m.id';
+  }
+
   // Parse orderBy
   let orderBy = defaultOrder;
   if (reqQuery.orderBy) {
@@ -101,13 +105,9 @@ exports.getModules = async (req, res) => {
         m.sub_tests AS "subTests", 
         m.created_at AS "createdAt",
         m.created_by AS "createdBy",
-        COALESCE(q.q_count, 0) AS "questionCount"
+        COUNT(q.id) AS "questionCount"
       FROM modules m
-      LEFT JOIN (
-        SELECT module_id, COUNT(*) AS q_count 
-        FROM questions 
-        GROUP BY module_id
-      ) q ON m.id = q.module_id
+      LEFT JOIN questions q ON m.id = q.module_id
     `;
     const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'COALESCE(m.display_order, 999999) ASC, m.created_at ASC');
     const result = await pool.query(sql, values);
@@ -296,15 +296,16 @@ exports.getLeaderboard = async (req, res) => {
 // ================= STATS =================
 exports.getStats = async (req, res) => {
   try {
-    const totalStudentsRes = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'student'");
+    const [totalStudentsRes, result] = await Promise.all([
+      pool.query("SELECT COUNT(*) FROM users WHERE role = 'student'"),
+      pool.query(`
+        SELECT m.title AS "moduleName", COALESCE(ROUND(AVG(s.score)), 0) AS "avgScore"
+        FROM modules m
+        LEFT JOIN scores s ON s.module_id = m.id
+        GROUP BY m.id, m.title
+      `),
+    ]);
     const totalStudents = parseInt(totalStudentsRes.rows[0].count, 10);
-
-    const result = await pool.query(`
-      SELECT m.title AS "moduleName", COALESCE(ROUND(AVG(s.score)), 0) AS "avgScore"
-      FROM modules m
-      LEFT JOIN scores s ON s.module_id = m.id
-      GROUP BY m.id, m.title
-    `);
     const chartData = result.rows.map(row => ({
       moduleName: row.moduleName,
       avgScore: parseInt(row.avgScore, 10)
