@@ -31,11 +31,11 @@ const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DES
                         field === 'accessType' ? 'access_type' : field;
         const dbField = sql.includes('FROM modules m') ? `m.${colName}` : colName;
                         
-        if (val === 'null' || val === 'undefined') {
+        if (val === 'null' || val === 'undefined' || val === '') {
           if (sqlOp === '=') {
-            whereClauses.push(`${dbField} IS NULL`);
+            whereClauses.push(`(${dbField} IS NULL OR ${dbField} = '')`);
           } else {
-            whereClauses.push(`${dbField} IS NOT NULL`);
+            whereClauses.push(`(${dbField} IS NOT NULL AND ${dbField} != '')`);
           }
         } else {
           whereClauses.push(`${dbField} ${sqlOp} $${paramIndex++}`);
@@ -53,16 +53,12 @@ const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DES
     }
   }
 
-  if (sql.includes('LEFT JOIN questions q')) {
-    sql += ' GROUP BY m.id';
-  }
-
   // Parse orderBy
   let orderBy = defaultOrder;
   if (reqQuery.orderBy) {
     const field = reqQuery.orderBy;
     const dir = reqQuery.orderDir || 'asc';
-    const dbField = field === 'createdAt' ? 'created_at' : field;
+    const dbField = field === 'createdAt' ? 'm.created_at' : (field === 'displayOrder' ? 'm.display_order' : `m.${field}`);
     orderBy = `${dbField} ${dir}`;
   }
   
@@ -105,9 +101,8 @@ exports.getModules = async (req, res) => {
         m.sub_tests AS "subTests", 
         m.created_at AS "createdAt",
         m.created_by AS "createdBy",
-        COUNT(q.id) AS "questionCount"
+        (SELECT COUNT(*) FROM questions q WHERE q.module_id = m.id) AS "questionCount"
       FROM modules m
-      LEFT JOIN questions q ON m.id = q.module_id
     `;
     const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'COALESCE(m.display_order, 999999) ASC, m.created_at ASC');
     const result = await pool.query(sql, values);
