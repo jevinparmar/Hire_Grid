@@ -204,16 +204,17 @@ export async function getDocs(queryRef) {
         if (clause.type === "where") {
           const { field, op, val } = clause;
           items = items.filter(item => {
+            const itemVal = item[field] !== undefined ? item[field] : (field === "parentId" ? item.parent_id : (field === "moduleType" ? item.module_type : undefined));
             if (op === "==") {
               if (val === null || val === undefined || val === "null" || val === "") {
-                return item[field] === null || item[field] === undefined || item[field] === "";
+                return itemVal === null || itemVal === undefined || itemVal === "" || itemVal === "null";
               }
               if (field === "parentId" || field === "id") {
-                return item[field] !== undefined && item[field] !== null && String(item[field]) === String(val);
+                return itemVal !== undefined && itemVal !== null && String(itemVal) === String(val);
               }
-              return item[field] === val;
+              return itemVal === val;
             }
-            if (op === "!=") return item[field] !== val;
+            if (op === "!=") return itemVal !== val;
             return true;
           });
         }

@@ -95,31 +95,23 @@ export function StudentHierarchyView({ currentUser, onOpenModule }) {
     let unsubModules = () => {};
 
     if (currentNodeInfo.id) {
-      // Always fetch modules for the current parent if we are in a branch, subject, or topic
-      if (
-        ["general_topic", "general_subject", "module"].includes(
-          currentNodeInfo.type,
-        )
-      ) {
-        const qMods = query(
-          collection(db, "modules"),
-          where("parentId", "==", currentNodeInfo.id),
-        );
-        unsubModules = onSnapshot(
-          qMods,
-          (snapshot) => {
-            const fetchedMods = snapshot.docs.map((d) => ({
-              id: d.id,
-              ...d.data(),
-            }));
-            fetchedMods.sort((a, b) => a.createdAt - b.createdAt);
-            setModules(fetchedMods);
-          },
-          (error) => console.error(error),
-        );
-      } else {
-        setModules([]);
-      }
+      // Always fetch modules for the current parent node if any exist
+      const qMods = query(
+        collection(db, "modules"),
+        where("parentId", "==", currentNodeInfo.id),
+      );
+      unsubModules = onSnapshot(
+        qMods,
+        (snapshot) => {
+          const fetchedMods = snapshot.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+          fetchedMods.sort((a, b) => a.createdAt - b.createdAt);
+          setModules(fetchedMods);
+        },
+        (error) => console.error(error),
+      );
     } else {
       setModules([]);
     }
@@ -128,7 +120,6 @@ export function StudentHierarchyView({ currentUser, onOpenModule }) {
       const qNodes = query(
         collection(db, "hierarchy_nodes"),
         where("parentId", "==", currentNodeInfo.id),
-        where("type", "==", currentNodeInfo.type),
       );
       unsubNodes = onSnapshot(
         qNodes,
