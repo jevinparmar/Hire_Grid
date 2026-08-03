@@ -198,6 +198,9 @@ export async function getDocs(queryRef) {
           const { field, op, val } = clause;
           items = items.filter(item => {
             if (op === "==") {
+              if (val === null || val === undefined || val === "null" || val === "") {
+                return item[field] === null || item[field] === undefined || item[field] === "";
+              }
               if (field === "parentId" || field === "id") {
                 return item[field] !== undefined && item[field] !== null && String(item[field]) === String(val);
               }

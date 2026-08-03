@@ -58,7 +58,8 @@ const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DES
   if (reqQuery.orderBy) {
     const field = reqQuery.orderBy;
     const dir = reqQuery.orderDir || 'asc';
-    const dbField = field === 'createdAt' ? 'm.created_at' : (field === 'displayOrder' ? 'm.display_order' : `m.${field}`);
+    const colName = field === 'createdAt' ? 'created_at' : (field === 'displayOrder' ? 'display_order' : field);
+    const dbField = sql.includes('FROM modules m') ? `m.${colName}` : colName;
     orderBy = `${dbField} ${dir}`;
   }
   
