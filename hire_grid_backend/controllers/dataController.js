@@ -46,10 +46,8 @@ const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DES
   }
 
   if (whereClauses.length > 0) {
-    // Find where the main FROM clause starts (e.g. FROM modules m or FROM hierarchy_nodes)
-    const match = sql.match(/\bFROM\s+([a-z0-9_]+(\s+[a-z0-9_]+)?)/i);
-    const mainFromIndex = match ? match.index : 0;
-    const outerWhereIndex = sql.toUpperCase().indexOf('WHERE', mainFromIndex);
+    const lastFromIndex = sql.toLowerCase().lastIndexOf('from ');
+    const outerWhereIndex = sql.toLowerCase().indexOf('where', lastFromIndex);
     
     if (outerWhereIndex !== -1) {
       sql += ' AND ' + whereClauses.join(' AND ');
