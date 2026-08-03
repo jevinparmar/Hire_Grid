@@ -23,6 +23,9 @@ import {
   Lock,
   MessageSquare,
   CreditCard,
+  Maximize,
+  ShieldAlert,
+  AlertTriangle,
 } from "lucide-react";
 import { ThemeToggle } from "../../components/common/ThemeToggle";
 import { PremiumPurchaseView } from "../../components/student/PremiumPurchaseView";
@@ -56,6 +59,36 @@ export default function StudentDashboard() {
   const [timeLeft, setTimeLeft] = useState(null);
   const [isReviewing, setIsReviewing] = useState(false);
   const [moduleScores, setModuleScores] = useState({});
+
+  // Anti-Cheating & Auto-Fullscreen System
+  const [warningCount, setWarningCount] = useState(0);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const enterFullscreen = () => {
+    try {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+      }
+    } catch (e) {}
+  };
+
+  const exitFullscreen = () => {
+    try {
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+    } catch (e) {}
+  };
 
   const [stats, setStats] = useState({
     xp: 0,
@@ -513,6 +546,64 @@ export default function StudentDashboard() {
     return () => clearTimeout(timer);
   }, [timeLeft, activeModule, isFinished, isReviewing, currentQuestionIndex]);
 
+  // Anti-Cheating Security Listener (Tab Switch, Window Blur, Fullscreen Exit)
+  useEffect(() => {
+    const isTestActive =
+      activeModule &&
+      currentQuestionIndex >= 0 &&
+      !isFinished &&
+      !isReviewing;
+
+    if (!isTestActive) return;
+
+    const triggerViolation = () => {
+      setWarningCount((prev) => {
+        const nextCount = prev + 1;
+        if (nextCount >= 3) {
+          alert(
+            "ANTI-CHEATING SYSTEM VIOLATION: Maximum allowed security warnings exceeded (3/3). Your exam is being automatically submitted immediately."
+          );
+          handleFinishTest();
+        } else {
+          setShowWarningModal(true);
+        }
+        return nextCount;
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        triggerViolation();
+      }
+    };
+
+    const handleBlur = () => {
+      triggerViolation();
+    };
+
+    const handleFullscreenChange = () => {
+      const inFS = !!(
+        document.fullscreenElement || document.webkitFullscreenElement
+      );
+      setIsFullscreen(inFS);
+      if (!inFS) {
+        triggerViolation();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
+  }, [activeModule, currentQuestionIndex, isFinished, isReviewing]);
+
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60)
       .toString()
@@ -544,6 +635,8 @@ export default function StudentDashboard() {
         setMarkedForReview({});
         setIsFinished(false);
         setIsReviewing(false);
+        setWarningCount(0);
+        setShowWarningModal(false);
         setTimeLeft((mod.timeLimit || 30) * 60);
       } catch (err) {
         alert("Failed to load questions: " + err.message);
@@ -552,6 +645,9 @@ export default function StudentDashboard() {
   };
 
   const handleStartActualTest = () => {
+    setWarningCount(0);
+    setShowWarningModal(false);
+    enterFullscreen();
     setCurrentQuestionIndex(0);
   };
 
@@ -563,6 +659,8 @@ export default function StudentDashboard() {
 
   const handleFinishTest = async () => {
     if (!activeModule || !auth.currentUser) return;
+    exitFullscreen();
+    setShowWarningModal(false);
     setIsFinished(true);
     let finalScore = 0;
     let correctCount = 0;
@@ -1959,7 +2057,41 @@ export default function StudentDashboard() {
                     </div>
                   ) : (
                     <div>
-                      <div className="flex justify-between items-center mb-8 border-b border-emerald-500/20 pb-4">
+                      {/* Anti-Cheating Violation Modal Overlay */}
+                      {showWarningModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+                          <div className="bg-white dark:bg-slate-900 border-2 border-rose-500 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-center">
+                            <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/50 rounded-full flex items-center justify-center mx-auto mb-4 text-rose-600 dark:text-rose-400">
+                              <AlertTriangle className="w-10 h-10 animate-bounce" />
+                            </div>
+                            <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 mb-2">
+                              Anti-Cheating Security Alert
+                            </h3>
+                            <p className="text-sm font-semibold text-rose-600 dark:text-rose-400 mb-4">
+                              Tab switching, window minimization, or exiting fullscreen is strictly prohibited!
+                            </p>
+                            <div className="bg-slate-100 dark:bg-slate-800/80 p-4 rounded-xl mb-6 text-slate-700 dark:text-slate-300 text-sm">
+                              <p className="font-bold text-base mb-1">
+                                Warning Status: <span className="text-rose-500 font-mono font-black">{warningCount} of 3 Allowed Warnings</span>
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                Exceeding 3 warnings will result in immediate automatic exam submission.
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                enterFullscreen();
+                                setShowWarningModal(false);
+                              }}
+                              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-base shadow-lg transition-all"
+                            >
+                              Re-enter Fullscreen & Continue Exam
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap justify-between items-center mb-8 border-b border-emerald-500/20 pb-4 gap-4">
                         <div>
                           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
                             {activeModule.title}
@@ -1969,14 +2101,34 @@ export default function StudentDashboard() {
                             {activeModule.questions.length}
                           </p>
                         </div>
-                        {timeLeft !== null && (
-                          <div
-                            className={`px-4 py-2 rounded-lg font-mono font-bold text-lg flex items-center ${timeLeft < 60 ? "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 animate-pulse" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-700 dark:text-slate-300"}`}
-                          >
-                            <Timer className="w-5 h-5 mr-2" />
-                            {formatTime(timeLeft)}
+
+                        <div className="flex items-center gap-3">
+                          <div className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm ${warningCount > 0 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border border-amber-300" : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300"}`}>
+                            <ShieldAlert className="w-4 h-4 mr-1.5" />
+                            <span>Anti-Cheat Guard</span>
+                            <span className="ml-2 px-1.5 py-0.5 rounded bg-black/10 font-mono">
+                              Warnings: {warningCount}/3
+                            </span>
                           </div>
-                        )}
+
+                          {!isFullscreen && (
+                            <button
+                              onClick={enterFullscreen}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center transition-all shadow"
+                            >
+                              <Maximize className="w-4 h-4 mr-1.5" /> Fullscreen
+                            </button>
+                          )}
+
+                          {timeLeft !== null && (
+                            <div
+                              className={`px-4 py-2 rounded-lg font-mono font-bold text-lg flex items-center ${timeLeft < 60 ? "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 animate-pulse" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}
+                            >
+                              <Timer className="w-5 h-5 mr-2" />
+                              {formatTime(timeLeft)}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div className="mb-8">
