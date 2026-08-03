@@ -25,6 +25,7 @@ router.delete("/modules/:id", dataController.deleteModule);
 router.get("/modules/:id/questions", dataController.getModuleQuestions);
 
 // Scores
+router.get("/scores", dataController.getScores);
 router.post("/scores", dataController.submitScore);
 
 // Leaderboard

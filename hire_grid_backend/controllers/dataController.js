@@ -46,7 +46,8 @@ const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DES
   }
 
   if (whereClauses.length > 0) {
-    if (sql.toLowerCase().includes('where')) {
+    const sqlWithoutSubqueries = sql.replace(/\([^()]*\)/g, '');
+    if (/\bWHERE\b/i.test(sqlWithoutSubqueries)) {
       sql += ' AND ' + whereClauses.join(' AND ');
     } else {
       sql += ' WHERE ' + whereClauses.join(' AND ');
@@ -275,6 +276,26 @@ exports.submitScore = async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     await pool.query("ROLLBACK");
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getScores = async (req, res) => {
+  try {
+    const baseQuery = `
+      SELECT 
+        id, 
+        module_id AS "moduleId", 
+        student_id AS "studentId", 
+        score, 
+        is_retake AS "isRetake", 
+        created_at AS "createdAt"
+      FROM scores
+    `;
+    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'created_at DESC');
+    const result = await pool.query(sql, values);
+    res.json({ success: true, scores: result.rows });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
