@@ -82,16 +82,23 @@ const createDocSnap = (id, data) => ({
 });
 
 const CACHE_TTL = 300000; // 5 minutes cache TTL
+const memoryCache = new Map();
 
 function getCache(key) {
   try {
+    const mem = memoryCache.get(key);
+    if (mem && Date.now() - mem.timestamp < CACHE_TTL) {
+      return mem.data;
+    }
     const raw = localStorage.getItem(`cache_${key}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed && Date.now() - parsed.timestamp < CACHE_TTL) {
+      memoryCache.set(key, parsed);
       return parsed.data;
     }
     localStorage.removeItem(`cache_${key}`);
+    memoryCache.delete(key);
   } catch (e) {
     console.error("Cache read failed", e);
   }
@@ -100,10 +107,9 @@ function getCache(key) {
 
 function setCache(key, data) {
   try {
-    localStorage.setItem(`cache_${key}`, JSON.stringify({
-      timestamp: Date.now(),
-      data,
-    }));
+    const entry = { timestamp: Date.now(), data };
+    memoryCache.set(key, entry);
+    localStorage.setItem(`cache_${key}`, JSON.stringify(entry));
   } catch (e) {
     console.error("Cache write failed", e);
   }
@@ -111,6 +117,7 @@ function setCache(key, data) {
 
 function invalidateCache(collectionName) {
   try {
+    memoryCache.clear();
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
