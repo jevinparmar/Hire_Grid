@@ -197,7 +197,12 @@ export async function getDocs(queryRef) {
         if (clause.type === "where") {
           const { field, op, val } = clause;
           items = items.filter(item => {
-            if (op === "==") return item[field] === val;
+            if (op === "==") {
+              if (field === "parentId" || field === "id") {
+                return item[field] !== undefined && item[field] !== null && String(item[field]) === String(val);
+              }
+              return item[field] === val;
+            }
             if (op === "!=") return item[field] !== val;
             return true;
           });

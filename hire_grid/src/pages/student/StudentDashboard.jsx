@@ -166,13 +166,15 @@ export default function StudentDashboard() {
       if (
         type === "module" &&
         activeCompany &&
-        item.parentId === activeCompany.id
+        item.parentId &&
+        String(item.parentId) === String(activeCompany.id)
       ) {
         path = [{ node: activeCompany, type: "company" }];
       } else if (
         type === "module" &&
         activeExam &&
-        item.parentId === activeExam.id
+        item.parentId &&
+        String(item.parentId) === String(activeExam.id)
       ) {
         path = [{ node: activeExam, type: "exam" }];
       }
@@ -1600,8 +1602,8 @@ export default function StudentDashboard() {
                           {modules
                             .filter(
                               (m) =>
-                                m.moduleType === "company" &&
-                                m.parentId === activeCompany.id,
+                                m.parentId &&
+                                String(m.parentId) === String(activeCompany.id),
                             )
                             .map((mod) => {
                               const prevScore = moduleScores[mod.id];
@@ -1741,8 +1743,8 @@ export default function StudentDashboard() {
                             })}
                           {modules.filter(
                             (m) =>
-                              m.moduleType === "company" &&
-                              m.parentId === activeCompany.id,
+                              m.parentId &&
+                              String(m.parentId) === String(activeCompany.id),
                           ).length === 0 && (
                             <div className="col-span-full text-center py-12 text-slate-500 bg-slate-100 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
                               Check back later. New preparation modules for{" "}

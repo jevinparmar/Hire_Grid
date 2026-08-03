@@ -104,7 +104,6 @@ export function StudentHierarchyView({ currentUser, onOpenModule }) {
         const qMods = query(
           collection(db, "modules"),
           where("parentId", "==", currentNodeInfo.id),
-          where("moduleType", "==", "general"),
         );
         unsubModules = onSnapshot(
           qMods,
