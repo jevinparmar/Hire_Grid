@@ -190,16 +190,30 @@ exports.saveModules = async (req, res) => {
         ]
       );
 
-      // Save/overwrite normalized questions if provided
-      if (m.questions && Array.isArray(m.questions)) {
+      // Save/overwrite normalized questions if provided (batched multi-row INSERT)
+      if (m.questions && Array.isArray(m.questions) && m.questions.length > 0) {
         await pool.query("DELETE FROM questions WHERE module_id = $1", [m.id]);
-        for (let i = 0; i < m.questions.length; i++) {
-          const q = m.questions[i];
-          const qId = (q.id && typeof q.id === "string" && q.id.length > 20) ? q.id : crypto.randomUUID();
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < m.questions.length; i += BATCH_SIZE) {
+          const chunk = m.questions.slice(i, i + BATCH_SIZE);
+          const valueClauses = [];
+          const values = [];
+          let paramIdx = 1;
+
+          chunk.forEach((q, idx) => {
+            const qId = (q.id && typeof q.id === "string" && q.id.length > 20) ? q.id : crypto.randomUUID();
+            const correctIndex = q.correctAnswerIndex !== undefined ? q.correctAnswerIndex : (q.correct_answer_index !== undefined ? q.correct_answer_index : null);
+            const svgCode = q.svgCode || q.svg_code || null;
+            const dispOrder = q.displayOrder !== undefined ? q.displayOrder : (i + idx);
+
+            valueClauses.push(`($${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++})`);
+            values.push(qId, m.id, q.question, JSON.stringify(q.options || []), correctIndex, svgCode, dispOrder);
+          });
+
           await pool.query(
             `INSERT INTO questions (
               id, module_id, question, options, correct_answer_index, svg_code, display_order
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ) VALUES ${valueClauses.join(", ")}
             ON CONFLICT (id) DO UPDATE
             SET module_id = EXCLUDED.module_id,
                 question = EXCLUDED.question,
@@ -207,15 +221,7 @@ exports.saveModules = async (req, res) => {
                 correct_answer_index = EXCLUDED.correct_answer_index,
                 svg_code = EXCLUDED.svg_code,
                 display_order = EXCLUDED.display_order`,
-            [
-              qId,
-              m.id,
-              q.question,
-              JSON.stringify(q.options || []),
-              q.correctAnswerIndex !== undefined ? q.correctAnswerIndex : (q.correct_answer_index !== undefined ? q.correct_answer_index : null),
-              q.svgCode || q.svg_code || null,
-              q.displayOrder !== undefined ? q.displayOrder : i
-            ]
+            values
           );
         }
       }
