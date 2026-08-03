@@ -46,8 +46,12 @@ const applyQueryModifiers = (baseQuery, reqQuery, defaultOrder = 'created_at DES
   }
 
   if (whereClauses.length > 0) {
-    const sqlWithoutSubqueries = sql.replace(/\([^()]*\)/g, '');
-    if (/\bWHERE\b/i.test(sqlWithoutSubqueries)) {
+    // Find where the main FROM clause starts (e.g. FROM modules m or FROM hierarchy_nodes)
+    const match = sql.match(/\bFROM\s+([a-z0-9_]+(\s+[a-z0-9_]+)?)/i);
+    const mainFromIndex = match ? match.index : 0;
+    const outerWhereIndex = sql.toUpperCase().indexOf('WHERE', mainFromIndex);
+    
+    if (outerWhereIndex !== -1) {
       sql += ' AND ' + whereClauses.join(' AND ');
     } else {
       sql += ' WHERE ' + whereClauses.join(' AND ');
@@ -745,7 +749,7 @@ exports.getUsers = async (req, res) => {
 exports.getUserById = async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query(
+    let result = await pool.query(
       `SELECT id, name, email, role, branch, semester, xp, level, rank, specialization, 
               has_full_premium AS "hasFullPremium", device_id AS "deviceId", 
               max_devices AS "maxDevices", allowed_devices AS "allowedDevices",
@@ -760,6 +764,12 @@ exports.getUserById = async (req, res) => {
        WHERE id = $1`,
       [id]
     );
+    if (result.rows.length === 0) {
+      result = await pool.query(
+        `SELECT id, name, email, role FROM admin_users WHERE id = $1`,
+        [id]
+      );
+    }
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
