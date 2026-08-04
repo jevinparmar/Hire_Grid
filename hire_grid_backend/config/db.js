@@ -94,25 +94,6 @@ const createTablesQuery = `
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
-  -- 4. scores
-  CREATE TABLE IF NOT EXISTS scores (
-    id VARCHAR(255) PRIMARY KEY,
-    module_id VARCHAR(255) NOT NULL,
-    student_id VARCHAR(255) NOT NULL,
-    score INTEGER NOT NULL,
-    is_retake BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-
-  -- 5. notifications
-  CREATE TABLE IF NOT EXISTS notifications (
-    id VARCHAR(255) PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    target_role VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-
   -- 6. companies
   CREATE TABLE IF NOT EXISTS companies (
     id VARCHAR(255) PRIMARY KEY,
@@ -145,15 +126,6 @@ const createTablesQuery = `
   CREATE TABLE IF NOT EXISTS gate_papers (
     id VARCHAR(255) PRIMARY KEY,
     title VARCHAR(255) NOT NULL
-  );
-
-  -- 10. gate_scores
-  CREATE TABLE IF NOT EXISTS gate_scores (
-    id VARCHAR(255) PRIMARY KEY,
-    student_id VARCHAR(255) NOT NULL,
-    score INTEGER NOT NULL,
-    is_retake BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
   -- 11. purchases
@@ -204,15 +176,6 @@ const createTablesQuery = `
     sell_type VARCHAR(100) DEFAULT 'pack',
     display_order INTEGER,
     created_at BIGINT
-  );
-
-  -- 15. audit_logs
-  CREATE TABLE IF NOT EXISTS audit_logs (
-    id VARCHAR(255) PRIMARY KEY,
-    user_id VARCHAR(255),
-    action VARCHAR(255) NOT NULL,
-    details TEXT,
-    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
   -- 16. plans
@@ -307,8 +270,6 @@ async function initDb() {
         CREATE INDEX IF NOT EXISTS idx_questions_module_id ON questions(module_id);
         CREATE INDEX IF NOT EXISTS idx_modules_module_type ON modules(module_type);
         CREATE INDEX IF NOT EXISTS idx_modules_parent_id ON modules(parent_id);
-        CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
-        CREATE INDEX IF NOT EXISTS idx_scores_module_id ON scores(module_id);
         CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_id ON hierarchy_nodes(parent_id);
         CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_type ON hierarchy_nodes(type);
         CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -318,6 +279,8 @@ async function initDb() {
     }
 
      await pool.query(`
+      DROP TABLE IF EXISTS scores, gate_scores, notifications, audit_logs CASCADE;
+
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_content_managers_email ON content_managers(email);
@@ -330,9 +293,6 @@ async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_questions_module_order ON questions(module_id, display_order);
       CREATE INDEX IF NOT EXISTS idx_companies_display_order ON companies(display_order);
       CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_type ON hierarchy_nodes(parent_id, type);
-      CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
-      CREATE INDEX IF NOT EXISTS idx_scores_module_id ON scores(module_id);
-      CREATE INDEX IF NOT EXISTS idx_scores_student_module ON scores(student_id, module_id);
       CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_parent_id ON hierarchy_nodes(parent_id);
       CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_type ON hierarchy_nodes(type);
       CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);

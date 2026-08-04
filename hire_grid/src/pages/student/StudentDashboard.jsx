@@ -508,27 +508,7 @@ export default function StudentDashboard() {
   }, [auth.currentUser?.uid]);
 
   useEffect(() => {
-    // We fetch user's scores
-    if (!auth.currentUser) return;
-    const fetchScores = async () => {
-      const q = query(collection(db, "scores"));
-      try {
-        const snapshot = await getDocs(q);
-        const scoresObj = {};
-        snapshot.docs.forEach((docSnap) => {
-          const s = docSnap.data();
-          if (s.studentId === auth.currentUser?.uid) {
-            if (!scoresObj[s.moduleId] || scoresObj[s.moduleId] < s.score) {
-              scoresObj[s.moduleId] = s.score;
-            }
-          }
-        });
-        setModuleScores(scoresObj);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.LIST, "scores");
-      }
-    };
-    fetchScores();
+    // Scores table removed for database optimization
   }, [activeModule]);
 
   useEffect(() => {
@@ -727,26 +707,11 @@ export default function StudentDashboard() {
     const isFirstTime = moduleScores[activeModule.id] === undefined;
 
     try {
-      const batch = writeBatch(db);
-
-      const scoreId = `${auth.currentUser.uid}_${activeModule.id}_${Date.now()}`;
-      batch.set(doc(db, "scores", scoreId), {
-        moduleId: activeModule.id,
-        studentId: auth.currentUser.uid,
-        score: finalScore,
-        percentage: percentage,
-        accuracy: accuracy,
-        createdAt: Date.now(),
-        isRetake: !isFirstTime,
-      });
-
       // Earn XP strictly on the first attempt
       if (isFirstTime) {
-        // Leaderboard must use Final Calculated Score.
-        gainedXP = finalScore; // Replace magic XP formula with actual score
+        gainedXP = finalScore;
         const newXP = stats.xp + finalScore;
 
-        // Calculate Category XP (Score)
         const newCategoryXP = { ...stats.categoryXP };
         const type = activeModule.moduleType || "general";
 
@@ -779,8 +744,8 @@ export default function StudentDashboard() {
         const totalAccuracy =
           (userData.firstAttemptTotalAccuracy || 0) + accuracy;
 
-        batch.update(doc(db, "users", auth.currentUser.uid), {
-          xp: newXP, // using xp field to store total score for easy sorting
+        await updateDoc(doc(db, "users", auth.currentUser.uid), {
+          xp: newXP,
           categoryXP: newCategoryXP,
           firstAttemptTotalScore: newXP,
           firstAttemptTestsTaken: testsTaken,
@@ -789,21 +754,8 @@ export default function StudentDashboard() {
           updatedAt: Date.now(),
         });
       }
-
-      await batch.commit();
-
-      await api.post("/scores", {
-        moduleId: activeModule.id,
-        score: finalScore,
-        totalQuestions: activeModule.questions.length,
-        correctAnswers: correctCount,
-        accuracy,
-        percentage,
-        answers,
-        createdAt: Date.now(),
-      }).catch((err) => console.error("API score submit error:", err));
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, "scores/users");
+      console.error("Score state error:", err);
     }
 
     setEarnedXP(gainedXP);

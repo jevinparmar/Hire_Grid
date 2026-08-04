@@ -243,63 +243,13 @@ exports.deleteModule = async (req, res) => {
   }
 };
 
-// ================= SCORES =================
+// ================= SCORES (REMOVED) =================
 exports.submitScore = async (req, res) => {
-  const { moduleId, studentId, score, isRetake = false, xp, level, rank } = req.body;
-  if (!moduleId || !studentId) {
-    return res.status(400).json({ error: "Missing score data" });
-  }
-
-  try {
-    const accessCheck = await verifyUserItemAccess(studentId, moduleId, "module");
-    if (!accessCheck.allowed) {
-      return res.status(403).json({ error: accessCheck.reason || "Access locked under current plan." });
-    }
-
-    await pool.query("BEGIN");
-    // 1. Save score
-    const scoreId = crypto.randomUUID();
-    await pool.query(
-      `INSERT INTO scores (id, module_id, student_id, score, is_retake)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [scoreId, moduleId, studentId, score, isRetake]
-    );
-
-    // 2. Update student XP/Level if provided
-    if (xp !== undefined) {
-      await pool.query(
-        `UPDATE users 
-         SET xp = $1, level = $2, rank = $3, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4`,
-        [xp, level || 1, rank || "Rising Scholar", studentId]
-      );
-    }
-    await pool.query("COMMIT");
-    res.json({ success: true });
-  } catch (err) {
-    await pool.query("ROLLBACK");
-    res.status(500).json({ error: err.message });
-  }
+  res.json({ success: true });
 };
 
 exports.getScores = async (req, res) => {
-  try {
-    const baseQuery = `
-      SELECT 
-        id, 
-        module_id AS "moduleId", 
-        student_id AS "studentId", 
-        score, 
-        is_retake AS "isRetake", 
-        created_at AS "createdAt"
-      FROM scores
-    `;
-    const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'created_at DESC');
-    const result = await pool.query(sql, values);
-    res.json({ success: true, scores: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json({ success: true, scores: [] });
 };
 
 // ================= LEADERBOARD =================
@@ -637,41 +587,17 @@ exports.deleteHierarchyNode = async (req, res) => {
   }
 };
 
-// ================= NOTIFICATIONS =================
+// ================= NOTIFICATIONS (REMOVED) =================
 exports.getNotifications = async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM notifications ORDER BY created_at DESC");
-    res.json({ success: true, notifications: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json({ success: true, notifications: [] });
 };
 
 exports.saveNotification = async (req, res) => {
-  const { id, title, message, targetRole } = req.body;
-  const notifId = id || crypto.randomUUID();
-  try {
-    await pool.query(
-      `INSERT INTO notifications (id, title, message, target_role)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (id) DO UPDATE
-       SET title = EXCLUDED.title, message = EXCLUDED.message, target_role = EXCLUDED.target_role`,
-      [notifId, title, message, targetRole || "all"]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json({ success: true });
 };
 
 exports.deleteNotification = async (req, res) => {
-  const { id } = req.params;
-  try {
-    await pool.query("DELETE FROM notifications WHERE id = $1", [id]);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json({ success: true });
 };
 
 // ================= GATE =================
@@ -1024,31 +950,13 @@ exports.updateAdminUser = async (req, res) => {
   }
 };
 
-// ================= AUDIT LOGS =================
+// ================= AUDIT LOGS (REMOVED) =================
 exports.getAuditLogs = async (req, res) => {
-  try {
-    const baseQuery = "SELECT * FROM audit_logs";
-    const { sql, values } = applyQueryModifiers(baseQuery, req.query, "date DESC");
-    const result = await pool.query(sql, values);
-    res.json({ success: true, logs: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json({ success: true, logs: [] });
 };
 
 exports.createAuditLog = async (req, res) => {
-  const { id, userId, action, details } = req.body;
-  const logId = id || crypto.randomUUID();
-  try {
-    await pool.query(
-      `INSERT INTO audit_logs (id, user_id, action, details)
-       VALUES ($1, $2, $3, $4)`,
-      [logId, userId, action, details || null]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json({ success: true });
 };
 
 // ================= ACCESS & DEVICE REQUESTS =================

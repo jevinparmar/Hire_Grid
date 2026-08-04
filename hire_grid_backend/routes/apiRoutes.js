@@ -24,10 +24,6 @@ router.post("/modules", dataController.saveModules);
 router.delete("/modules/:id", dataController.deleteModule);
 router.get("/modules/:id/questions", dataController.getModuleQuestions);
 
-// Scores
-router.get("/scores", dataController.getScores);
-router.post("/scores", dataController.submitScore);
-
 // Leaderboard
 router.get("/leaderboard", dataController.getLeaderboard);
 
@@ -66,11 +62,6 @@ router.get("/hierarchy_nodes", dataController.getHierarchyNodes);
 router.post("/hierarchy_nodes", dataController.saveHierarchyNode);
 router.delete("/hierarchy_nodes/:id", dataController.deleteHierarchyNode);
 
-// Notifications
-router.get("/notifications", dataController.getNotifications);
-router.post("/notifications", dataController.saveNotification);
-router.delete("/notifications/:id", dataController.deleteNotification);
-
 // GATE
 router.get("/gate/branches", dataController.getGateBranches);
 router.post("/gate/branches", dataController.saveGateBranch);
@@ -89,12 +80,6 @@ router.post("/admin_users", dataController.saveAdminUser);
 router.put("/admin_users/:id", dataController.updateAdminUser);
 router.delete("/admin_users/:id", dataController.deleteAdminUser);
 
-// Audit Logs
-router.get("/audit-logs", dataController.getAuditLogs);
-router.post("/audit-logs", dataController.createAuditLog);
-router.get("/audit_logs", dataController.getAuditLogs);
-router.post("/audit_logs", dataController.createAuditLog);
-
 // Access & Device Requests
 router.get("/access-requests", dataController.getAccessRequests);
 router.post("/access-requests", dataController.createAccessRequest);
@@ -107,9 +92,6 @@ router.put("/device-requests/:id", dataController.updateDeviceRequest);
 router.get("/device_requests", dataController.getDeviceRequests);
 router.post("/device_requests", dataController.createDeviceRequest);
 router.put("/device_requests/:id", dataController.updateDeviceRequest);
-
-// Plans
-router.get("/plans", dataController.getPlans);
 
 // Feedbacks
 router.get("/feedbacks", dataController.getFeedbacks);

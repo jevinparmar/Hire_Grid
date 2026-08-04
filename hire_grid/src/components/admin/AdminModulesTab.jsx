@@ -706,12 +706,7 @@ export function AdminModulesTab({
       await api.post("/modules", newModule);
       await setDoc(doc(db, "modules", moduleId), newModule).catch(() => {});
 
-      await setDoc(doc(db, "notifications", getSafeUUID()), {
-        title: editingModuleId ? "Module Updated" : "New Module Available",
-        message: `The module "${title}" has been ${editingModuleId ? "updated" : "published"}.`,
-        createdAt: Date.now(),
-        targetRole: "student",
-      });
+
 
       if (isContentManager) {
         await logAudit(
@@ -798,14 +793,7 @@ export function AdminModulesTab({
       await api.post("/modules", newModule);
       await setDoc(doc(db, "modules", moduleId), newModule).catch(() => {});
 
-      await setDoc(doc(db, "notifications", getSafeUUID()), {
-        title: editingModuleId
-          ? "Master Module Updated"
-          : "New Master Module Available",
-        message: `The master module "${title}" has been ${editingModuleId ? "updated" : "published"}.`,
-        createdAt: Date.now(),
-        targetRole: "student",
-      });
+
 
       if (isContentManager) {
         await logAudit(
