@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { api } from "../../lib/api";
 import { OperationType, collection, db, deleteDoc, doc, handleFirestoreError, onSnapshot, orderBy, query, updateDoc } from "../../firebase";
 
 import { Check, X, Trash2 } from "lucide-react";

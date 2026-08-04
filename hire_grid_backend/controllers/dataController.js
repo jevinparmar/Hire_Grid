@@ -1066,16 +1066,6 @@ exports.updateDeviceRequest = async (req, res) => {
   }
 };
 
-// ================= PLANS =================
-exports.getPlans = async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM plans");
-    res.json({ success: true, plans: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
 // ================= FEEDBACKS =================
 exports.getFeedbacks = async (req, res) => {
   try {
