@@ -216,6 +216,10 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
       }
 
       if (grantType === "plan") {
+        await api.put(`/users/${selectedStudentId}`, {
+          activePlanId: selectedItemId,
+          planExpiry: expiresAt,
+        }).catch(() => {});
         await updateDoc(doc(db, "users", selectedStudentId), {
           activePlanId: selectedItemId,
           planExpiry: expiresAt,
@@ -243,6 +247,10 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
         updateField = `grantedModuleAccess.${selectedItemId}`;
       }
 
+      await api.put(`/users/${selectedStudentId}`, {
+        [updateField]: expiresAt,
+        ...(grantType === "full_premium" ? { hasFullPremium: true } : {}),
+      }).catch(() => {});
       await updateDoc(doc(db, "users", selectedStudentId), {
         [updateField]: expiresAt,
         ...(grantType === "full_premium" ? { hasFullPremium: true } : {}), // legacy support
@@ -264,6 +272,10 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
       const { deleteField } = await import("../../firebase");
       let updateField = "";
       if (type === "full_premium") {
+        await api.put(`/users/${studentId}`, {
+          fullPremiumExpiry: "DELETE_FIELD",
+          hasFullPremium: false,
+        }).catch(() => {});
         await updateDoc(doc(db, "users", studentId), {
           fullPremiumExpiry: deleteField(),
           hasFullPremium: false,
@@ -271,6 +283,10 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
         fetchStudents();
         return;
       } else if (type === "plan") {
+        await api.put(`/users/${studentId}`, {
+          activePlanId: "DELETE_FIELD",
+          planExpiry: "DELETE_FIELD",
+        }).catch(() => {});
         await updateDoc(doc(db, "users", studentId), {
           activePlanId: deleteField(),
           planExpiry: deleteField(),

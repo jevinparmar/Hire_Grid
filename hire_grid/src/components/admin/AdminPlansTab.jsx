@@ -194,6 +194,7 @@ export function AdminPlansTab({ userName }) {
         freeDemoModules,
       };
 
+      await api.post("/plans", payload).catch(() => {});
       await setDoc(doc(db, "plans", planId), payload);
 
       await logAudit(
@@ -225,17 +226,18 @@ export function AdminPlansTab({ userName }) {
     setPrice(plan.price);
     setDuration(plan.duration);
     setDurationDays(plan.durationDays || 30);
-    setIsActive(plan.isActive);
-    setIsFreemium(plan.isFreemium);
-    setLearningContent(plan.learningContent || []);
-    setCompanyModules(plan.companyModules || []);
-    setFreeDemoModules(plan.freeDemoModules || []);
+    setIsActive(plan.isActive !== false && plan.is_active !== false);
+    setIsFreemium(plan.isFreemium || plan.is_freemium);
+    setLearningContent(plan.learningContent || plan.learning_content || []);
+    setCompanyModules(plan.companyModules || plan.company_modules || []);
+    setFreeDemoModules(plan.freeDemoModules || plan.free_demo_modules || []);
     setIsFormOpen(true);
   };
 
   const handleDelete = async (planId, planName) => {
     if (!confirm(`Are you sure you want to delete the plan "${planName}"?`)) return;
     try {
+      await api.delete(`/plans/${planId}`).catch(() => {});
       await deleteDoc(doc(db, "plans", planId));
       await logAudit(userName, `Deleted subscription plan: ${planName}`);
       alert("Plan deleted successfully!");

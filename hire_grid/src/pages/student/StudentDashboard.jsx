@@ -1348,13 +1348,13 @@ export default function StudentDashboard() {
                           Premium Membership Plans
                         </h4>
                         
-                        {plans.filter(p => p.isActive).length === 0 ? (
+                        {plans.filter(p => p.isActive !== false && p.is_active !== false).length === 0 ? (
                           <div className="text-center py-16 text-slate-500">
                             No active plans available at the moment.
                           </div>
                         ) : (
                           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            {plans.filter(p => p.isActive).map((plan) => (
+                            {plans.filter(p => p.isActive !== false && p.is_active !== false).map((plan) => (
                               <div
                                 key={plan.id}
                                 className="bg-[#0B1528] rounded-2xl p-6 shadow-sm border border-slate-800 flex flex-col justify-between hover:-translate-y-1 hover:shadow-lg transition-all"
@@ -1364,16 +1364,16 @@ export default function StudentDashboard() {
                                     {plan.name}
                                   </h3>
                                   <p className="text-xs text-slate-500 uppercase tracking-wider font-mono">
-                                    {plan.duration.replace("_", " ")}
+                                    {(plan.duration || "free").replace("_", " ")}
                                   </p>
                                   <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
                                     ₹{plan.price || 0}
                                   </div>
                                   
                                   <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-2 pt-2 border-t border-slate-800">
-                                    <li>✓ {(plan.learningContent || []).length} Learning Entitlements</li>
-                                    <li>✓ {(plan.companyModules || []).length} Company Prep Modules</li>
-                                    <li>✓ {(plan.freeDemoModules || []).length} Free Demo tests</li>
+                                    <li>✓ {(plan.learningContent || plan.learning_content || []).length} Learning Entitlements</li>
+                                    <li>✓ {(plan.companyModules || plan.company_modules || []).length} Company Prep Modules</li>
+                                    <li>✓ {(plan.freeDemoModules || plan.free_demo_modules || []).length} Free Demo tests</li>
                                   </ul>
                                 </div>
                                 

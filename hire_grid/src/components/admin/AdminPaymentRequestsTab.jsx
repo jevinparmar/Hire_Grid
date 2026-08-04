@@ -59,6 +59,7 @@ export function AdminPaymentRequestsTab({ userName = "Admin" }) {
         }
 
         if (Object.keys(updateData).length > 0) {
+          await api.put(`/users/${req.userId}`, updateData).catch(() => {});
           await updateDoc(userRef, updateData);
         }
       }
