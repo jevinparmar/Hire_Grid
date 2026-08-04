@@ -175,7 +175,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
   const [grantType, setGrantType] = useState("full_premium");
   const [selectedItemId, setSelectedItemId] = useState("");
 
-  const [nodes, setNodes] = useState([]);
+  const [plans, setPlans] = useState([]);
 
   useEffect(() => {
     const unsubNodes = onSnapshot(
@@ -185,8 +185,16 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
       },
       (error) => console.error(error),
     );
+    const unsubPlans = onSnapshot(
+      collection(db, "plans"),
+      (snapshot) => {
+        setPlans(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      },
+      (error) => console.error(error),
+    );
     return () => {
       unsubNodes();
+      unsubPlans();
     };
   }, []);
 
@@ -205,6 +213,19 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
       if (selectedDuration !== "permanent") {
         const months = parseInt(selectedDuration, 10);
         expiresAt = Date.now() + months * 30 * 24 * 60 * 60 * 1000;
+      }
+
+      if (grantType === "plan") {
+        await updateDoc(doc(db, "users", selectedStudentId), {
+          activePlanId: selectedItemId,
+          planExpiry: expiresAt,
+        });
+        setSelectedItemId("");
+        setSelectedDuration("permanent");
+        setError("");
+        alert("Subscription plan assigned successfully.");
+        fetchStudents();
+        return;
       }
 
       let updateField = "";
@@ -231,6 +252,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
       setSelectedDuration("permanent");
       setError("");
       alert("Access granted successfully.");
+      fetchStudents();
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, "users");
       setError(err.message);
@@ -246,6 +268,14 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
           fullPremiumExpiry: deleteField(),
           hasFullPremium: false,
         });
+        fetchStudents();
+        return;
+      } else if (type === "plan") {
+        await updateDoc(doc(db, "users", studentId), {
+          activePlanId: deleteField(),
+          planExpiry: deleteField(),
+        });
+        fetchStudents();
         return;
       } else if (type === "company") {
         updateField = `grantedCompanyAccess.${itemId}`;
@@ -827,10 +857,12 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
                 className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               >
                 <option value="full_premium">Full Premium (All Access)</option>
+                <option value="plan">Subscription Plan</option>
                 <option value="company">Individual Company</option>
                 <option value="subject">Individual Subject</option>
                 <option value="topic">Individual Topic</option>
                 <option value="exam">Individual Branch</option>
+                <option value="module">Individual Module</option>
               </select>
             </div>
 
@@ -846,6 +878,12 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
                   className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                 >
                   <option value="">Select an item...</option>
+                  {grantType === "plan" &&
+                    plans.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (₹{p.price || 0})
+                      </option>
+                    ))}
                   {grantType === "company" &&
                     companies.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -853,6 +891,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
                       </option>
                     ))}
                   {grantType !== "company" &&
+                    grantType !== "plan" &&
                     nodes
                       .filter(
                         (n) =>

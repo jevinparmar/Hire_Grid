@@ -43,6 +43,9 @@ export function AdminPaymentRequestsTab({ userName = "Admin" }) {
         if (req.itemType === "full_premium") {
           updateData["fullPremiumExpiry"] = expiry;
           updateData["hasFullPremium"] = true; // Legacy support
+        } else if (req.itemType === "plan") {
+          updateData["activePlanId"] = req.itemId;
+          updateData["planExpiry"] = expiry;
         } else if (req.itemType === "company") {
           updateData[`grantedCompanyAccess.${req.itemId}`] = expiry;
         } else if (req.itemType === "subject") {

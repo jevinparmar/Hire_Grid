@@ -87,8 +87,19 @@ async function verifyUserItemAccess(userId, itemId, itemType = "module") {
   }
 
   // 5. Check Explicit Admin Grants / Individual Purchases
-  const grantedCompanyAccess = user.granted_company_access || {};
-  const grantedModuleAccess = user.granted_module_access || {};
+  const parseObj = (val) => {
+    if (val && typeof val === "object" && !Array.isArray(val)) return val;
+    if (typeof val === "string") {
+      try {
+        const parsed = JSON.parse(val);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return {};
+  };
+
+  const grantedCompanyAccess = parseObj(user.granted_company_access);
+  const grantedModuleAccess = parseObj(user.granted_module_access);
   const purchasedCompanies = Array.isArray(user.purchased_companies)
     ? user.purchased_companies
     : typeof user.purchased_companies === "string"
@@ -105,7 +116,7 @@ async function verifyUserItemAccess(userId, itemId, itemType = "module") {
   if (itemType === "module") {
     if (grantedModuleAccess[itemId] !== undefined) {
       const expiry = grantedModuleAccess[itemId];
-      if (expiry === null || Date.now() <= Number(expiry)) {
+      if (expiry === null || expiry === undefined || Date.now() <= Number(expiry)) {
         return { allowed: true };
       }
     }

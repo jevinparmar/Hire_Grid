@@ -1,3 +1,25 @@
+const parseArray = (val) => {
+  if (Array.isArray(val)) return val;
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+  }
+  return [];
+};
+
+const parseObject = (val) => {
+  if (val && typeof val === "object" && !Array.isArray(val)) return val;
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+  }
+  return {};
+};
+
 export const normalizeItemType = (type) => {
   if (!type) return "module";
   if (type.includes("subject")) return "general_subject";
@@ -15,11 +37,15 @@ export const hasAccess = (
 ) => {
   if (!item) return false;
 
-  const currentAccessMode = item.accessMode || "inherit";
+  const currentAccessMode = item.accessMode || item.access_mode || "inherit";
   let effectiveAccessType = "free";
-  if (item.accessType && item.accessType !== "free") {
-    effectiveAccessType = item.accessType;
-  } else if (item.isPremium) {
+  
+  const rawAccessType = item.accessType || item.access_type;
+  const rawIsPremium = item.isPremium !== undefined ? item.isPremium : item.is_premium;
+
+  if (rawAccessType && rawAccessType !== "free") {
+    effectiveAccessType = rawAccessType;
+  } else if (rawIsPremium) {
     effectiveAccessType = "premium_only";
   }
 
@@ -27,15 +53,13 @@ export const hasAccess = (
   if (itemType === "module" && currentAccessMode === "inherit") {
     effectiveAccessType = "free"; // default
     if (path && path.length > 0) {
-      // Find the closest valid premium/purchasable parent
       for (let i = path.length - 1; i >= 0; i--) {
         const p = path[i];
         const pNode = p.node || (p.id ? p : null);
         if (pNode) {
-          const pAccessType =
-            (pNode.accessType && pNode.accessType !== "free")
-              ? pNode.accessType
-              : (pNode.isPremium ? "premium_only" : "free");
+          const pAcc = pNode.accessType || pNode.access_type;
+          const pPrem = pNode.isPremium !== undefined ? pNode.isPremium : pNode.is_premium;
+          const pAccessType = (pAcc && pAcc !== "free") ? pAcc : (pPrem ? "premium_only" : "free");
           if (pAccessType !== "free" && pAccessType !== "demo") {
             effectiveAccessType = pAccessType;
             break;
@@ -54,20 +78,19 @@ export const hasAccess = (
   if (!currentUser) return false;
 
   // 3. Individual Purchase / Admin Granted Explicit Access
-  let accessMap;
   const normType = normalizeItemType(itemType);
-  if (normType === "company") accessMap = currentUser.grantedCompanyAccess;
-  else if (normType === "general_subject")
-    accessMap = currentUser.grantedSubjectAccess;
-  else if (normType === "general_topic")
-    accessMap = currentUser.grantedTopicAccess;
-  else if (normType === "general_branch")
-    accessMap = currentUser.grantedExamAccess;
-  else if (normType === "module") accessMap = currentUser.grantedModuleAccess;
+  let accessMapRaw;
+  if (normType === "company") accessMapRaw = currentUser.grantedCompanyAccess || currentUser.granted_company_access;
+  else if (normType === "general_subject") accessMapRaw = currentUser.grantedSubjectAccess || currentUser.granted_subject_access;
+  else if (normType === "general_topic") accessMapRaw = currentUser.grantedTopicAccess || currentUser.granted_topic_access;
+  else if (normType === "general_branch") accessMapRaw = currentUser.grantedExamAccess || currentUser.granted_exam_access;
+  else if (normType === "module") accessMapRaw = currentUser.grantedModuleAccess || currentUser.granted_module_access;
+
+  const accessMap = parseObject(accessMapRaw);
 
   if (accessMap && accessMap[item.id] !== undefined) {
     const expiry = accessMap[item.id];
-    if (expiry === null || Date.now() <= expiry) {
+    if (expiry === null || expiry === undefined || Date.now() <= Number(expiry)) {
       return true;
     }
   }
@@ -76,66 +99,68 @@ export const hasAccess = (
   for (const p of path) {
     if (!p.node) continue;
     const pNormType = normalizeItemType(p.node.type || p.type);
-    let pAccessMap;
-    if (pNormType === "company") pAccessMap = currentUser.grantedCompanyAccess;
-    else if (pNormType === "general_subject")
-      pAccessMap = currentUser.grantedSubjectAccess;
-    else if (pNormType === "general_topic")
-      pAccessMap = currentUser.grantedTopicAccess;
-    else if (pNormType === "general_branch")
-      pAccessMap = currentUser.grantedExamAccess;
+    let pAccessMapRaw;
+    if (pNormType === "company") pAccessMapRaw = currentUser.grantedCompanyAccess || currentUser.granted_company_access;
+    else if (pNormType === "general_subject") pAccessMapRaw = currentUser.grantedSubjectAccess || currentUser.granted_subject_access;
+    else if (pNormType === "general_topic") pAccessMapRaw = currentUser.grantedTopicAccess || currentUser.granted_topic_access;
+    else if (pNormType === "general_branch") pAccessMapRaw = currentUser.grantedExamAccess || currentUser.granted_exam_access;
+    
+    const pAccessMap = parseObject(pAccessMapRaw);
     if (pAccessMap && pAccessMap[p.node.id] !== undefined) {
       const expiry = pAccessMap[p.node.id];
-      if (expiry === null || Date.now() <= expiry) {
+      if (expiry === null || expiry === undefined || Date.now() <= Number(expiry)) {
         return true;
       }
     }
   }
 
   // Legacy purchasedCompanies fallback
-  if (
-    normType === "company" &&
-    currentUser.purchasedCompanies?.includes(item.id)
-  ) {
+  const purchasedCompanies = parseArray(currentUser.purchasedCompanies || currentUser.purchased_companies);
+  if (normType === "company" && purchasedCompanies.includes(item.id)) {
     return true;
   }
 
   // 4. Admin Granted Global Access (Full Premium)
+  const hasFullPremium = currentUser.hasFullPremium || currentUser.has_full_premium;
+  const fullPremiumExpiry = currentUser.fullPremiumExpiry || currentUser.full_premium_expiry || currentUser.planExpiry || currentUser.plan_expiry;
   if (
     effectiveAccessType !== "purchasable_only" &&
     effectiveAccessType !== "access_request_only" &&
-    currentUser.hasFullPremium
+    hasFullPremium
   ) {
     if (
-      currentUser.fullPremiumExpiry === null ||
-      currentUser.fullPremiumExpiry === undefined ||
-      Date.now() <= currentUser.fullPremiumExpiry
+      fullPremiumExpiry === null ||
+      fullPremiumExpiry === undefined ||
+      Date.now() <= Number(fullPremiumExpiry)
     ) {
       return true;
     }
   }
 
   // 5. Active Plan Access Validation
-  if (activePlan && currentUser.activePlanId) {
-    const isPlanActive = activePlan.isActive !== false;
-    const isNotExpired =
-      !currentUser.planExpiry || Date.now() <= Number(currentUser.planExpiry);
+  const userActivePlanId = currentUser.activePlanId || currentUser.active_plan_id;
+  if (activePlan && userActivePlanId) {
+    const isPlanActive = activePlan.isActive !== false && activePlan.is_active !== false;
+    const userPlanExpiry = currentUser.planExpiry || currentUser.plan_expiry;
+    const isNotExpired = !userPlanExpiry || Date.now() <= Number(userPlanExpiry);
 
     if (isPlanActive && isNotExpired) {
-      const companyModules = activePlan.companyModules || activePlan.company_modules || [];
-      const learningContent = activePlan.learningContent || activePlan.learning_content || [];
-      const freeDemoModules = activePlan.freeDemoModules || activePlan.free_demo_modules || [];
+      const companyModules = parseArray(activePlan.companyModules || activePlan.company_modules);
+      const learningContent = parseArray(activePlan.learningContent || activePlan.learning_content);
+      const freeDemoModules = parseArray(activePlan.freeDemoModules || activePlan.free_demo_modules);
+
+      const parentId = item.parentId || item.parent_id;
 
       // A. Company Check
       if (normType === "company") {
-        if (companyModules.includes(item.id)) return true;
+        if (companyModules.includes(item.id) || learningContent.includes(item.id)) return true;
       }
 
       // B. Module Check
       if (normType === "module") {
         if (freeDemoModules.includes(item.id)) return true;
         if (learningContent.includes(item.id)) return true;
-        if (item.parentId && (companyModules.includes(item.parentId) || learningContent.includes(item.parentId))) return true;
+        if (parentId && (companyModules.includes(parentId) || learningContent.includes(parentId))) return true;
 
         for (const p of path) {
           if (p.node && (companyModules.includes(p.node.id) || learningContent.includes(p.node.id))) {
