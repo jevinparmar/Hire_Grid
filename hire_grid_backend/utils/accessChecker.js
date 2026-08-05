@@ -89,9 +89,25 @@ async function verifyUserItemAccess(userId, itemId, itemType = "module") {
           isIncludedInAnyPlan = true;
         }
       } else {
+        let ancestorIds = [item.id];
+        let currentParentId = item.parent_id;
+        while (currentParentId) {
+          ancestorIds.push(currentParentId);
+          const parentNodeRes = await pool.query(
+            "SELECT parent_id FROM hierarchy_nodes WHERE id = $1",
+            [currentParentId]
+          );
+          if (parentNodeRes.rows.length > 0) {
+            currentParentId = parentNodeRes.rows[0].parent_id;
+          } else {
+            currentParentId = null;
+          }
+        }
+
         const planCheck = await pool.query(
-          `SELECT 1 FROM plans WHERE learning_content @> $1::jsonb`,
-          [JSON.stringify([item.id])]
+          `SELECT 1 FROM plans p, jsonb_array_elements_text(p.learning_content) lc
+           WHERE lc = ANY($1)`,
+          [ancestorIds]
         );
         if (planCheck.rows.length > 0) {
           isIncludedInAnyPlan = true;

@@ -91,9 +91,11 @@ export const hasAccess = (
           });
         }
       } else {
+        const pathIds = path.map((p) => p.id || (p.node ? p.node.id : null)).filter(Boolean);
+        const allResourceIds = [item.id, ...pathIds];
         isIncludedInAnyPlan = allPlans.some((p) => {
           const learnCont = parseArray(p.learningContent || p.learning_content);
-          return learnCont.includes(item.id);
+          return allResourceIds.some((id) => learnCont.includes(id));
         });
       }
     } else if (
@@ -101,9 +103,11 @@ export const hasAccess = (
       normType === "general_subject" ||
       normType === "general_topic"
     ) {
+      const pathIds = path.map((p) => p.id || (p.node ? p.node.id : null)).filter(Boolean);
+      const allResourceIds = [item.id, ...pathIds];
       isIncludedInAnyPlan = allPlans.some((p) => {
         const learnCont = parseArray(p.learningContent || p.learning_content);
-        return learnCont.includes(item.id);
+        return allResourceIds.some((id) => learnCont.includes(id));
       });
     }
   }
