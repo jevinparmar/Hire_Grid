@@ -105,6 +105,7 @@ exports.getModules = async (req, res) => {
         m.sub_tests AS "subTests", 
         m.created_at AS "createdAt",
         m.created_by AS "createdBy",
+        m.branch_id AS "branchId",
         (SELECT COUNT(*) FROM questions q WHERE q.module_id = m.id) AS "questionCount"
       FROM modules m
     `;
@@ -144,9 +145,9 @@ exports.saveModules = async (req, res) => {
           description, category, time_limit, pass_percentage,
           marks_per_question, negative_marks, total_marks,
           access_mode, access_type, is_premium, price,
-          display_order, is_master, sub_tests, created_by
+          display_order, is_master, sub_tests, created_by, branch_id
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
          ON CONFLICT (id) DO UPDATE 
          SET title = EXCLUDED.title, 
              module_type = EXCLUDED.module_type, 
@@ -165,7 +166,8 @@ exports.saveModules = async (req, res) => {
              display_order = EXCLUDED.display_order,
              is_master = EXCLUDED.is_master,
              sub_tests = EXCLUDED.sub_tests,
-             created_by = COALESCE(modules.created_by, EXCLUDED.created_by)`,
+             created_by = COALESCE(modules.created_by, EXCLUDED.created_by),
+             branch_id = EXCLUDED.branch_id`,
         [
           m.id || crypto.randomUUID(), 
           m.title, 
@@ -185,7 +187,8 @@ exports.saveModules = async (req, res) => {
           m.displayOrder !== undefined ? m.displayOrder : (m.display_order !== undefined ? m.display_order : Math.floor(Date.now() / 1000)),
           m.isMaster !== undefined ? m.isMaster : false,
           JSON.stringify(m.subTestests || m.subTests || []),
-          m.createdBy || null
+          m.createdBy || null,
+          m.branchId || m.branch_id || null
         ]
       );
 
@@ -1157,7 +1160,70 @@ exports.getPlans = async (req, res) => {
     `;
     const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'created_at DESC');
     const result = await pool.query(sql, values);
-    res.json({ success: true, plans: result.rows });
+    const plansList = result.rows;
+
+    if (plansList.length > 0) {
+      const planIds = plansList.map(p => p.id);
+      const mappingsResult = await pool.query(
+        `SELECT plan_id AS "planId", company_id AS "companyId", branch_id AS "branchId" 
+         FROM plan_mappings 
+         WHERE plan_id = ANY($1)`,
+        [planIds]
+      );
+      
+      const mappingsGrouped = {};
+      for (const m of mappingsResult.rows) {
+        if (!mappingsGrouped[m.planId]) {
+          mappingsGrouped[m.planId] = [];
+        }
+        mappingsGrouped[m.planId].push({ companyId: m.companyId, branchId: m.branchId });
+      }
+      
+      for (const p of plansList) {
+        p.companyBranches = mappingsGrouped[p.id] || [];
+      }
+    }
+
+    res.json({ success: true, plans: plansList });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getPlanById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT 
+        id, 
+        name, 
+        price, 
+        duration, 
+        duration_days AS "durationDays", 
+        is_active AS "isActive", 
+        is_freemium AS "isFreemium", 
+        learning_content AS "learningContent", 
+        company_modules AS "companyModules", 
+        free_demo_modules AS "freeDemoModules", 
+        created_at AS "createdAt"
+       FROM plans WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    const plan = result.rows[0];
+    const mappingsResult = await pool.query(
+      `SELECT company_id AS "companyId", branch_id AS "branchId" 
+       FROM plan_mappings 
+       WHERE plan_id = $1`,
+      [id]
+    );
+    plan.companyBranches = mappingsResult.rows;
+
+    res.json({ success: true, plan });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1175,9 +1241,12 @@ exports.savePlan = async (req, res) => {
     learningContent,
     companyModules,
     freeDemoModules,
+    companyBranches, // Array of { companyId, branchId }
   } = req.body;
   const planId = id || crypto.randomUUID();
   try {
+    await pool.query("BEGIN");
+
     await pool.query(
       `INSERT INTO plans (
         id, name, price, duration, duration_days, is_active, is_freemium, learning_content, company_modules, free_demo_modules
@@ -1206,8 +1275,42 @@ exports.savePlan = async (req, res) => {
         JSON.stringify(freeDemoModules || []),
       ]
     );
+
+    // Delete existing plan mappings
+    await pool.query("DELETE FROM plan_mappings WHERE plan_id = $1", [planId]);
+
+    // Insert new plan mappings with database validation
+    if (companyBranches && Array.isArray(companyBranches)) {
+      for (const mapping of companyBranches) {
+        const { companyId, branchId } = mapping;
+        if (companyId && branchId) {
+          // Verify company exists
+          const compCheck = await pool.query("SELECT 1 FROM companies WHERE id = $1", [companyId]);
+          if (compCheck.rows.length === 0) {
+            await pool.query("ROLLBACK");
+            return res.status(400).json({ error: `Company with ID ${companyId} does not exist.` });
+          }
+          // Verify branch exists in hierarchy_nodes
+          const branchCheck = await pool.query("SELECT 1 FROM hierarchy_nodes WHERE id = $1 AND type = 'general_branch'", [branchId]);
+          if (branchCheck.rows.length === 0) {
+            await pool.query("ROLLBACK");
+            return res.status(400).json({ error: `Branch with ID ${branchId} does not exist.` });
+          }
+
+          const mappingId = crypto.randomUUID();
+          await pool.query(
+            `INSERT INTO plan_mappings (id, plan_id, company_id, branch_id)
+             VALUES ($1, $2, $3, $4)`,
+            [mappingId, planId, companyId, branchId]
+          );
+        }
+      }
+    }
+
+    await pool.query("COMMIT");
     res.json({ success: true, plan: { id: planId } });
   } catch (err) {
+    await pool.query("ROLLBACK");
     res.status(500).json({ error: err.message });
   }
 };

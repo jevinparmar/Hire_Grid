@@ -41,6 +41,21 @@ export function AdminModulesTab({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Technical");
+  const [branchId, setBranchId] = useState("");
+  const [availableBranches, setAvailableBranches] = useState([]);
+
+  useEffect(() => {
+    if (moduleType === "company") {
+      api.get("/hierarchy-nodes?where_type==:general_branch")
+        .then((res) => {
+          if (res.success && res.nodes) {
+            setAvailableBranches(res.nodes);
+          }
+        })
+        .catch((err) => console.error("Fetch branches error:", err));
+    }
+  }, [moduleType]);
+
   const [timeLimit, setTimeLimit] = useState(30);
   const [passPercentage, setPassPercentage] = useState(60);
   const [accessMode, setAccessMode] = useState("inherit");
@@ -699,6 +714,7 @@ export function AdminModulesTab({
         isMaster: false,
         moduleType,
         parentId,
+        branchId: moduleType === "company" ? branchId : undefined,
       }),
     );
 
@@ -722,6 +738,7 @@ export function AdminModulesTab({
       setTitle("");
       setDescription("");
       setCategory("Technical");
+      setBranchId("");
       setRawText("");
       setParsedQuestions([]);
       setAccessMode("inherit");
@@ -786,6 +803,7 @@ export function AdminModulesTab({
         createdBy: existing?.createdBy || userName,
         moduleType,
         parentId,
+        branchId: moduleType === "company" ? branchId : undefined,
       }),
     );
 
@@ -808,6 +826,7 @@ export function AdminModulesTab({
       setEditingModuleId(null);
       setTitle("");
       setDescription("");
+      setBranchId("");
       setSelectedSubModules([]);
       setAccessMode("inherit");
       setAccessType("free");
@@ -917,6 +936,7 @@ export function AdminModulesTab({
     setAccessType(accType);
     setPrice(m.price || 0);
     setDisplayOrder(m.displayOrder || 0);
+    setBranchId(m.branchId || m.branch_id || "");
   };
 
   const cancelEdit = () => {
@@ -926,6 +946,7 @@ export function AdminModulesTab({
     setTitle("");
     setDescription("");
     setCategory("Technical");
+    setBranchId("");
     setTimeLimit(30);
     setPassPercentage(60);
     setMarksPerQuestion(1);
@@ -1220,6 +1241,26 @@ export function AdminModulesTab({
                 <option value="Other">Other</option>
               </select>
             </div>
+            {moduleType === "company" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Select Branch
+                </label>
+                <select
+                  required
+                  value={branchId || ""}
+                  onChange={(e) => setBranchId(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                >
+                  <option value="">-- Choose Branch --</option>
+                  {availableBranches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 Time Limit (mins)

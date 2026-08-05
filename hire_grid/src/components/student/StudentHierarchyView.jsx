@@ -5,7 +5,7 @@ import { Lock, ChevronRight, Play } from "lucide-react";
 import { PackagePreviewView } from "./PackagePreviewView";
 import { hasAccess as globalHasAccess } from "../../lib/accessControl";
 
-export function StudentHierarchyView({ currentUser, onOpenModule }) {
+export function StudentHierarchyView({ currentUser, onOpenModule, assessmentPlanFilter }) {
   const [nodes, setNodes] = useState([]);
   const [modules, setModules] = useState([]);
   const [currentNodeInfo, setCurrentNodeInfo] = useState({
@@ -133,8 +133,17 @@ export function StudentHierarchyView({ currentUser, onOpenModule }) {
               name: data.name || data.title,
             };
           });
-          fetchedNodes.sort((a, b) => a.createdAt - b.createdAt);
-          setNodes(fetchedNodes);
+
+          let filteredNodes = fetchedNodes;
+          if (assessmentPlanFilter && currentNodeInfo.id === null && currentNodeInfo.type === "general_branch") {
+            filteredNodes = fetchedNodes.filter((n) =>
+              (assessmentPlanFilter.companyBranches || []).some((cb) => cb.branchId === n.id) ||
+              (assessmentPlanFilter.learningContent || []).includes(n.id)
+            );
+          }
+
+          filteredNodes.sort((a, b) => a.createdAt - b.createdAt);
+          setNodes(filteredNodes);
         },
         (error) => console.error(error),
       );

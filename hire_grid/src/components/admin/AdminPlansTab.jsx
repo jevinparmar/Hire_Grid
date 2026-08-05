@@ -47,6 +47,18 @@ export function AdminPlansTab({ userName }) {
   const [learningContent, setLearningContent] = useState([]); // Selected Branch/Subject/Topic/Module IDs
   const [companyModules, setCompanyModules] = useState([]); // Selected Company IDs
   const [freeDemoModules, setFreeDemoModules] = useState([]); // Selected Module IDs marked as free demo
+  const [companyBranches, setCompanyBranches] = useState([]); // Array of { companyId, branchId }
+  const [availableBranches, setAvailableBranches] = useState([]);
+
+  useEffect(() => {
+    api.get("/hierarchy-nodes?where_type==:general_branch")
+      .then((res) => {
+        if (res.success && res.nodes) {
+          setAvailableBranches(res.nodes);
+        }
+      })
+      .catch((err) => console.error("Fetch branches error:", err));
+  }, []);
 
   // Tree Expansion & Loading State
   const [expandedNodes, setExpandedNodes] = useState({});
@@ -173,9 +185,23 @@ export function AdminPlansTab({ userName }) {
   const handleToggleCompany = (companyId) => {
     if (companyModules.includes(companyId)) {
       setCompanyModules(companyModules.filter((id) => id !== companyId));
+      setCompanyBranches(companyBranches.filter((cb) => cb.companyId !== companyId));
     } else {
       setCompanyModules([...companyModules, companyId]);
     }
+  };
+
+  const handleToggleCompanyBranch = (companyId, branchId) => {
+    const exists = companyBranches.some((cb) => cb.companyId === companyId && cb.branchId === branchId);
+    if (exists) {
+      setCompanyBranches(companyBranches.filter((cb) => !(cb.companyId === companyId && cb.branchId === branchId)));
+    } else {
+      setCompanyBranches([...companyBranches, { companyId, branchId }]);
+    }
+  };
+
+  const isCompanyBranchChecked = (companyId, branchId) => {
+    return companyBranches.some((cb) => cb.companyId === companyId && cb.branchId === branchId);
   };
 
   const handleSave = async (e) => {
@@ -193,6 +219,7 @@ export function AdminPlansTab({ userName }) {
         learningContent,
         companyModules,
         freeDemoModules,
+        companyBranches,
       };
 
       await api.post("/plans", payload).catch(() => {});
@@ -215,6 +242,7 @@ export function AdminPlansTab({ userName }) {
       setLearningContent([]);
       setCompanyModules([]);
       setFreeDemoModules([]);
+      setCompanyBranches([]);
       alert("Plan saved successfully!");
     } catch (err) {
       alert("Error saving plan: " + err.message);
@@ -232,6 +260,7 @@ export function AdminPlansTab({ userName }) {
     setLearningContent(plan.learningContent || plan.learning_content || []);
     setCompanyModules(plan.companyModules || plan.company_modules || []);
     setFreeDemoModules(plan.freeDemoModules || plan.free_demo_modules || []);
+    setCompanyBranches(plan.companyBranches || plan.company_branches || []);
     setIsFormOpen(true);
   };
 
@@ -345,6 +374,7 @@ export function AdminPlansTab({ userName }) {
               setLearningContent([]);
               setCompanyModules([]);
               setFreeDemoModules([]);
+              setCompanyBranches([]);
               setIsFormOpen(true);
             }}
             className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold text-sm px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-500/10 transition-all duration-200"
@@ -476,23 +506,60 @@ export function AdminPlansTab({ userName }) {
                   companies.map((comp) => {
                     const checked = companyModules.includes(comp.id);
                     return (
-                      <label
+                      <div
                         key={comp.id}
-                        className={`flex items-center space-x-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        className={`p-3 rounded-xl border transition-all space-y-3 ${
                           checked
-                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                            : "bg-[#091121] border-slate-800 hover:border-slate-700 text-slate-300"
+                            ? "bg-emerald-500/5 border-emerald-500/30"
+                            : "bg-[#091121] border-slate-800 hover:border-slate-700"
                         }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => handleToggleCompany(comp.id)}
-                          className="w-4 h-4 text-emerald-600 rounded bg-transparent"
-                        />
-                        <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-                        <span className="text-sm font-medium">{comp.name}</span>
-                      </label>
+                        <label className="flex items-center space-x-3 cursor-pointer text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handleToggleCompany(comp.id)}
+                            className="w-4 h-4 text-emerald-600 rounded bg-transparent"
+                          />
+                          <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span className="text-sm font-medium text-white">{comp.name}</span>
+                        </label>
+                        
+                        {checked && (
+                          <div className="pl-7 pt-2 border-t border-slate-850 space-y-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                              Allowed Branches:
+                            </span>
+                            {availableBranches.length === 0 ? (
+                              <span className="text-xs text-slate-500">No branches created yet.</span>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {availableBranches.map((br) => {
+                                  const brChecked = isCompanyBranchChecked(comp.id, br.id);
+                                  return (
+                                    <label
+                                      key={br.id}
+                                      className={`flex items-center space-x-2 p-2 rounded-lg border cursor-pointer transition-all text-xs ${
+                                        brChecked
+                                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                          : "bg-[#0B1528] border-slate-800 hover:border-slate-700 text-slate-400"
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={brChecked}
+                                        onChange={() => handleToggleCompanyBranch(comp.id, br.id)}
+                                        className="w-3.5 h-3.5 text-emerald-600 rounded bg-transparent"
+                                      />
+                                      <span className="truncate">{br.name}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     );
                   })
                 )}
@@ -503,7 +570,10 @@ export function AdminPlansTab({ userName }) {
           <div className="flex justify-end space-x-4 border-t border-slate-800 pt-4">
             <button
               type="button"
-              onClick={() => setIsFormOpen(false)}
+              onClick={() => {
+                setIsFormOpen(false);
+                setCompanyBranches([]);
+              }}
               className="px-5 py-2.5 rounded-xl border border-slate-800 text-slate-300 hover:bg-slate-800 text-sm font-semibold"
             >
               Cancel

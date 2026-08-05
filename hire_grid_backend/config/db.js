@@ -279,7 +279,19 @@ async function initDb() {
     }
 
      await pool.query(`
-      DROP TABLE IF EXISTS scores, gate_scores, notifications, audit_logs CASCADE;
+       DROP TABLE IF EXISTS scores, gate_scores, notifications, audit_logs CASCADE;
+
+       CREATE TABLE IF NOT EXISTS plan_mappings (
+         id VARCHAR(255) PRIMARY KEY,
+         plan_id VARCHAR(255) REFERENCES plans(id) ON DELETE CASCADE,
+         company_id VARCHAR(255) REFERENCES companies(id) ON DELETE CASCADE,
+         branch_id VARCHAR(255) REFERENCES hierarchy_nodes(id) ON DELETE CASCADE,
+         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+       );
+
+       CREATE INDEX IF NOT EXISTS idx_plan_mappings_plan_id ON plan_mappings(plan_id);
+       CREATE INDEX IF NOT EXISTS idx_plan_mappings_company_id ON plan_mappings(company_id);
+       CREATE INDEX IF NOT EXISTS idx_plan_mappings_branch_id ON plan_mappings(branch_id);
 
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
@@ -337,6 +349,8 @@ async function initDb() {
       ALTER TABLE modules ADD COLUMN IF NOT EXISTS display_order INTEGER;
       ALTER TABLE modules ADD COLUMN IF NOT EXISTS is_master BOOLEAN DEFAULT FALSE;
       ALTER TABLE modules ADD COLUMN IF NOT EXISTS sub_tests JSONB DEFAULT '[]';
+      ALTER TABLE modules ADD COLUMN IF NOT EXISTS branch_id VARCHAR(255);
+      CREATE INDEX IF NOT EXISTS idx_modules_branch_id ON modules(branch_id);
 
        -- Hierarchy nodes additions
       ALTER TABLE hierarchy_nodes ADD COLUMN IF NOT EXISTS name VARCHAR(255);

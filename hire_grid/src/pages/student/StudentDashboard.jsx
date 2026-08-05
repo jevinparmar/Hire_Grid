@@ -59,6 +59,7 @@ export default function StudentDashboard() {
   const [timeLeft, setTimeLeft] = useState(null);
   const [isReviewing, setIsReviewing] = useState(false);
   const [moduleScores, setModuleScores] = useState({});
+  const [assessmentPlanFilter, setAssessmentPlanFilter] = useState(null);
 
   // Anti-Cheating & Auto-Fullscreen System
   const [warningCount, setWarningCount] = useState(0);
@@ -160,7 +161,23 @@ export default function StudentDashboard() {
     }
   };
 
-  const hasItemAccess = (item, type, hierarchyPath) => {
+  const handleStartAssessmentFlow = async (plan) => {
+    try {
+      const res = await api.get(`/plans/${plan.id}`);
+      if (res.success && res.plan) {
+        setAssessmentPlanFilter(res.plan);
+        setActiveTab("companies");
+        setActiveCompany(null);
+        setActiveModule(null);
+        setActiveMasterModule(null);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to start assessment: " + err.message);
+    }
+  };
+
+  const hasItemAccess = (item, type, hierarchyPath = null) => {
     let path = hierarchyPath || [];
     if (path.length === 0) {
       if (
@@ -1055,6 +1072,23 @@ export default function StudentDashboard() {
 
         <main className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-[#0B1120]/50 p-4 sm:p-8">
           <div className="max-w-7xl mx-auto">
+            {assessmentPlanFilter && (
+              <div className="bg-emerald-600/10 border border-emerald-500/20 px-6 py-3 rounded-2xl flex items-center justify-between shadow-xl mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                  <div>
+                    <span className="text-sm font-bold text-white">Plan Assessment Mode: {assessmentPlanFilter.name}</span>
+                    <p className="text-xs text-slate-400 mt-0.5">Displaying only companies and branches locked to this plan.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAssessmentPlanFilter(null)}
+                  className="text-xs font-bold text-rose-400 hover:text-rose-300 transition-colors uppercase tracking-wider"
+                >
+                  Exit Assessment
+                </button>
+              </div>
+            )}
             {activeMasterModule && !activeModule ? (
               <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in zoom-in duration-300">
                 <button
@@ -1376,13 +1410,21 @@ export default function StudentDashboard() {
                                     <li>✓ {(plan.freeDemoModules || plan.free_demo_modules || []).length} Free Demo tests</li>
                                   </ul>
                                 </div>
-                                
-                                <button
-                                  onClick={() => setPurchaseItem({ item: plan, type: "plan" })}
-                                  className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all shadow-md shadow-emerald-600/10"
-                                >
-                                  Subscribe Now
-                                </button>
+                                {currentUserDoc?.activePlanId === plan.id || currentUserDoc?.active_plan_id === plan.id ? (
+                                  <button
+                                    onClick={() => handleStartAssessmentFlow(plan)}
+                                    className="w-full mt-6 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold py-2.5 px-4 rounded-xl transition-all shadow-lg shadow-emerald-500/10"
+                                  >
+                                    Start Assessment
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => setPurchaseItem({ item: plan, type: "plan" })}
+                                    className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all shadow-md shadow-emerald-600/10"
+                                  >
+                                    Subscribe Now
+                                  </button>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -1403,6 +1445,7 @@ export default function StudentDashboard() {
                     <StudentHierarchyView
                       currentUser={currentUserDoc}
                       onOpenModule={handleStartModule}
+                      assessmentPlanFilter={assessmentPlanFilter}
                     />
                   </div>
                 )}
@@ -1430,7 +1473,14 @@ export default function StudentDashboard() {
                           </div>
                         ) : (
                           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            {companies.map((c) => (
+                            {(assessmentPlanFilter
+                              ? companies.filter((c) =>
+                                  (assessmentPlanFilter.companyBranches || []).some(
+                                    (cb) => cb.companyId === c.id
+                                  )
+                                )
+                              : companies
+                            ).map((c) => (
                               <div
                                 key={c.id}
                                 onClick={() => handleCompanyClick(c)}
@@ -1555,7 +1605,11 @@ export default function StudentDashboard() {
                             .filter(
                               (m) =>
                                 m.parentId &&
-                                String(m.parentId) === String(activeCompany.id),
+                                String(m.parentId) === String(activeCompany.id) &&
+                                (!assessmentPlanFilter ||
+                                  (assessmentPlanFilter.companyBranches || []).some(
+                                    (cb) => cb.companyId === activeCompany.id && cb.branchId === m.branchId
+                                  )),
                             )
                             .map((mod) => {
                               const prevScore = moduleScores[mod.id];

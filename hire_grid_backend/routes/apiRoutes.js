@@ -46,6 +46,7 @@ router.post("/settings/:id", dataController.saveSettings);
 
 // Plans
 router.get("/plans", dataController.getPlans);
+router.get("/plans/:id", dataController.getPlanById);
 router.post("/plans", dataController.savePlan);
 router.delete("/plans/:id", dataController.deletePlan);
 
