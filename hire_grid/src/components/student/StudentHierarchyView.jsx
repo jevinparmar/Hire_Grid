@@ -180,7 +180,8 @@ export function StudentHierarchyView({
   };
 
   const handleUnlockItem = (item, isModule = false) => {
-    const itemType = isModule ? "module" : item.type;
+    if (!item) return;
+    const itemType = isModule ? "module" : (item.type || (item === currentNodeInfo.node ? (currentNodeInfo.node.type || "general_branch") : "general_branch"));
     const normalizeType = (t) => {
       if (!t) return "module";
       if (t.includes("subject")) return "general_subject";
@@ -190,12 +191,17 @@ export function StudentHierarchyView({
     };
     const resolvedNormType = normalizeType(itemType);
 
+    const pathIds = path.map((pt) => pt.id || (pt.node ? pt.node.id : null)).filter(Boolean);
+    const allResourceIds = [item.id, ...pathIds];
+
     let matchedPlan = null;
     if (plans && plans.length > 0) {
       matchedPlan = plans.find((p) => {
-        const compMods = Array.isArray(p.companyModules) ? p.companyModules : (typeof p.companyModules === "string" ? JSON.parse(p.companyModules || "[]") : []);
+        const compModsRaw = p.companyModules || p.company_modules || [];
+        const compMods = Array.isArray(compModsRaw) ? compModsRaw : (typeof compModsRaw === "string" ? JSON.parse(compModsRaw || "[]") : []);
         const compBr = p.companyBranches || p.company_branches || [];
-        const learnCont = Array.isArray(p.learningContent) ? p.learningContent : (typeof p.learningContent === "string" ? JSON.parse(p.learningContent || "[]") : []);
+        const learnContRaw = p.learningContent || p.learning_content || [];
+        const learnCont = Array.isArray(learnContRaw) ? learnContRaw : (typeof learnContRaw === "string" ? JSON.parse(learnContRaw || "[]") : []);
 
         if (resolvedNormType === "company") {
           return compMods.includes(item.id) || compBr.some((cb) => cb.companyId === item.id);
@@ -204,13 +210,9 @@ export function StudentHierarchyView({
           if (item.moduleType === "company" || item.module_type === "company") {
             return compMods.includes(parentId) || compBr.some((cb) => cb.companyId === parentId);
           } else {
-            const pathIds = path.map((pt) => pt.id).filter(Boolean);
-            const allResourceIds = [item.id, ...pathIds];
             return allResourceIds.some((id) => learnCont.includes(id));
           }
         } else {
-          const pathIds = path.map((pt) => pt.id).filter(Boolean);
-          const allResourceIds = [item.id, ...pathIds];
           return allResourceIds.some((id) => learnCont.includes(id));
         }
       });
