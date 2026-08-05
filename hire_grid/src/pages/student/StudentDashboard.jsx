@@ -1446,6 +1446,8 @@ export default function StudentDashboard() {
                       currentUser={currentUserDoc}
                       onOpenModule={handleStartModule}
                       assessmentPlanFilter={assessmentPlanFilter}
+                      onSelectPurchaseItem={(item, type) => setPurchaseItem({ item, type })}
+                      onRedirectToTab={(tab) => setActiveTab(tab)}
                     />
                   </div>
                 )}

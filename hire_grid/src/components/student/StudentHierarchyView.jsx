@@ -5,7 +5,13 @@ import { Lock, ChevronRight, Play } from "lucide-react";
 import { PackagePreviewView } from "./PackagePreviewView";
 import { hasAccess as globalHasAccess } from "../../lib/accessControl";
 
-export function StudentHierarchyView({ currentUser, onOpenModule, assessmentPlanFilter }) {
+export function StudentHierarchyView({
+  currentUser,
+  onOpenModule,
+  assessmentPlanFilter,
+  onSelectPurchaseItem,
+  onRedirectToTab,
+}) {
   const [nodes, setNodes] = useState([]);
   const [modules, setModules] = useState([]);
   const [currentNodeInfo, setCurrentNodeInfo] = useState({
@@ -173,6 +179,61 @@ export function StudentHierarchyView({ currentUser, onOpenModule, assessmentPlan
     return globalHasAccess(item, type, currentUser, path, activePlan, plans);
   };
 
+  const handleUnlockItem = (item, isModule = false) => {
+    const itemType = isModule ? "module" : item.type;
+    const normalizeType = (t) => {
+      if (!t) return "module";
+      if (t.includes("subject")) return "general_subject";
+      if (t.includes("topic")) return "general_topic";
+      if (t.includes("branch")) return "general_branch";
+      return t;
+    };
+    const resolvedNormType = normalizeType(itemType);
+
+    let matchedPlan = null;
+    if (plans && plans.length > 0) {
+      matchedPlan = plans.find((p) => {
+        const compMods = Array.isArray(p.companyModules) ? p.companyModules : (typeof p.companyModules === "string" ? JSON.parse(p.companyModules || "[]") : []);
+        const compBr = p.companyBranches || p.company_branches || [];
+        const learnCont = Array.isArray(p.learningContent) ? p.learningContent : (typeof p.learningContent === "string" ? JSON.parse(p.learningContent || "[]") : []);
+
+        if (resolvedNormType === "company") {
+          return compMods.includes(item.id) || compBr.some((cb) => cb.companyId === item.id);
+        } else if (resolvedNormType === "module") {
+          const parentId = item.parentId || item.parent_id;
+          if (item.moduleType === "company" || item.module_type === "company") {
+            return compMods.includes(parentId) || compBr.some((cb) => cb.companyId === parentId);
+          } else {
+            const pathIds = path.map((pt) => pt.id).filter(Boolean);
+            const allResourceIds = [item.id, ...pathIds];
+            return allResourceIds.some((id) => learnCont.includes(id));
+          }
+        } else {
+          const pathIds = path.map((pt) => pt.id).filter(Boolean);
+          const allResourceIds = [item.id, ...pathIds];
+          return allResourceIds.some((id) => learnCont.includes(id));
+        }
+      });
+    }
+
+    if (matchedPlan) {
+      if (onSelectPurchaseItem && onRedirectToTab) {
+        onSelectPurchaseItem(matchedPlan, "plan");
+        onRedirectToTab("plans");
+      }
+    } else {
+      const pkg = getClosestPackage(isModule ? item : null);
+      if (pkg) {
+        if (pkg.type === "company" && onSelectPurchaseItem && onRedirectToTab) {
+          onSelectPurchaseItem(pkg.node, "company");
+          onRedirectToTab("companies");
+        } else {
+          setPreviewPackageItem(pkg);
+        }
+      }
+    }
+  };
+
   const handleNodeClick = (node) => {
     let nextType = "module";
     if (node.type === "general_branch") nextType = "general_subject";
@@ -256,10 +317,7 @@ export function StudentHierarchyView({ currentUser, onOpenModule, assessmentPlan
             </button>
           ) : (
             <button
-              onClick={() => {
-                const pkg = getClosestPackage();
-                if (pkg) setPreviewPackageItem(pkg);
-              }}
+              onClick={() => handleUnlockItem(currentNodeInfo.node)}
               className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-sm whitespace-nowrap"
             >
               Unlock Package
@@ -401,9 +459,7 @@ export function StudentHierarchyView({ currentUser, onOpenModule, assessmentPlan
                             ) : null;
                           })()}
                           <button
-                            onClick={() => {
-                              if (pkg) setPreviewPackageItem(pkg);
-                            }}
+                            onClick={() => handleUnlockItem(mod, true)}
                             className="w-full flex items-center justify-center space-x-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 py-3 rounded-xl font-bold transition-colors border border-amber-200 dark:border-amber-800/50"
                           >
                             <Lock className="w-4 h-4" />
