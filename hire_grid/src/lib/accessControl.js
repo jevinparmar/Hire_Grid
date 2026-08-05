@@ -34,6 +34,7 @@ export const hasAccess = (
   currentUser,
   path = [], // Optional path to resolve inherit mode and ancestor plan inclusions
   activePlan = null, // User's active plan object
+  allPlans = []
 ) => {
   if (!item) return false;
 
@@ -69,6 +70,48 @@ export const hasAccess = (
     }
   }
 
+  // Check if this item (or its parent company/branch) is included in any plan in allPlans
+  const normType = normalizeItemType(itemType);
+  let isIncludedInAnyPlan = false;
+  if (allPlans && allPlans.length > 0) {
+    if (normType === "company") {
+      isIncludedInAnyPlan = allPlans.some((p) => {
+        const compMods = parseArray(p.companyModules || p.company_modules);
+        const compBr = p.companyBranches || p.company_branches || [];
+        return compMods.includes(item.id) || compBr.some((cb) => cb.companyId === item.id);
+      });
+    } else if (normType === "module") {
+      const parentId = item.parentId || item.parent_id;
+      if (item.moduleType === "company" || item.module_type === "company") {
+        if (parentId) {
+          isIncludedInAnyPlan = allPlans.some((p) => {
+            const compMods = parseArray(p.companyModules || p.company_modules);
+            const compBr = p.companyBranches || p.company_branches || [];
+            return compMods.includes(parentId) || compBr.some((cb) => cb.companyId === parentId);
+          });
+        }
+      } else {
+        isIncludedInAnyPlan = allPlans.some((p) => {
+          const learnCont = parseArray(p.learningContent || p.learning_content);
+          return learnCont.includes(item.id);
+        });
+      }
+    } else if (
+      normType === "general_branch" ||
+      normType === "general_subject" ||
+      normType === "general_topic"
+    ) {
+      isIncludedInAnyPlan = allPlans.some((p) => {
+        const learnCont = parseArray(p.learningContent || p.learning_content);
+        return learnCont.includes(item.id);
+      });
+    }
+  }
+
+  if (isIncludedInAnyPlan) {
+    effectiveAccessType = "premium_only";
+  }
+
   // 2. Free or Demo content is always unlocked
   if (effectiveAccessType === "free" || effectiveAccessType === "demo") {
     return true;
@@ -78,7 +121,6 @@ export const hasAccess = (
   if (!currentUser) return false;
 
   // 3. Individual Purchase / Admin Granted Explicit Access
-  const normType = normalizeItemType(itemType);
   let accessMapRaw;
   if (normType === "company") accessMapRaw = currentUser.grantedCompanyAccess || currentUser.granted_company_access;
   else if (normType === "general_subject") accessMapRaw = currentUser.grantedSubjectAccess || currentUser.granted_subject_access;

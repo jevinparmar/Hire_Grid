@@ -199,7 +199,7 @@ export default function StudentDashboard() {
     const activePlan = currentUserDoc?.activePlanId
       ? plans.find((p) => p.id === currentUserDoc.activePlanId)
       : null;
-    return hasAccess(item, type, currentUserDoc, path, activePlan);
+    return hasAccess(item, type, currentUserDoc, path, activePlan, plans);
   };
 
   const hasAccessToCompany = (company) => hasItemAccess(company, "company");

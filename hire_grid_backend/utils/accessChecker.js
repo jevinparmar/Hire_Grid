@@ -65,6 +65,44 @@ async function verifyUserItemAccess(userId, itemId, itemType = "module") {
       accessType = "premium_only";
     }
 
+    // Check if included in any plan
+    let isIncludedInAnyPlan = false;
+    if (itemType === "company") {
+      const planCheck = await pool.query(
+        `SELECT 1 FROM plan_mappings WHERE company_id = $1 
+         UNION 
+         SELECT 1 FROM plans WHERE company_modules @> $2::jsonb`,
+        [item.id, JSON.stringify([item.id])]
+      );
+      if (planCheck.rows.length > 0) {
+        isIncludedInAnyPlan = true;
+      }
+    } else if (itemType === "module") {
+      if (item.module_type === "company" && item.parent_id) {
+        const planCheck = await pool.query(
+          `SELECT 1 FROM plan_mappings WHERE company_id = $1 
+           UNION 
+           SELECT 1 FROM plans WHERE company_modules @> $2::jsonb`,
+          [item.parent_id, JSON.stringify([item.parent_id])]
+        );
+        if (planCheck.rows.length > 0) {
+          isIncludedInAnyPlan = true;
+        }
+      } else {
+        const planCheck = await pool.query(
+          `SELECT 1 FROM plans WHERE learning_content @> $1::jsonb`,
+          [JSON.stringify([item.id])]
+        );
+        if (planCheck.rows.length > 0) {
+          isIncludedInAnyPlan = true;
+        }
+      }
+    }
+
+    if (isIncludedInAnyPlan) {
+      accessType = "premium_only";
+    }
+
     if (itemType === "module" && accessMode === "inherit" && item.parent_id) {
       const parentRes = await pool.query(
         "SELECT access_type, is_premium FROM companies WHERE id = $1 UNION SELECT access_type, is_premium FROM hierarchy_nodes WHERE id = $1",

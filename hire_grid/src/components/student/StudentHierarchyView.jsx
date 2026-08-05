@@ -170,7 +170,7 @@ export function StudentHierarchyView({ currentUser, onOpenModule, assessmentPlan
     const activePlan = currentUser?.activePlanId
       ? plans.find((p) => p.id === currentUser.activePlanId)
       : null;
-    return globalHasAccess(item, type, currentUser, path, activePlan);
+    return globalHasAccess(item, type, currentUser, path, activePlan, plans);
   };
 
   const handleNodeClick = (node) => {
