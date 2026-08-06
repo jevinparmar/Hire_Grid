@@ -503,16 +503,45 @@ export default function StudentDashboard() {
       }
     };
 
+    const handleKeydown = (e) => {
+      // Block common screenshot shortcuts and PrintScreen
+      if (
+        e.key === "PrintScreen" || 
+        (e.metaKey && e.shiftKey && (e.key === "3" || e.key === "4" || e.key === "s" || e.key === "S")) ||
+        (e.ctrlKey && e.key === "p") || (e.metaKey && e.key === "p") // Also block printing shortcut
+      ) {
+        e.preventDefault();
+        showToast("Anti-Cheat: Screen capturing or printing is disabled during exams.", "warning");
+      }
+    };
+
+    const handleCopyPaste = (e) => {
+      e.preventDefault();
+      showToast("Anti-Cheat: Copy/Paste is disabled during exams.", "warning");
+    };
+
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleBlur);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    window.addEventListener("keydown", handleKeydown, true);
+    document.addEventListener("copy", handleCopyPaste);
+    document.addEventListener("paste", handleCopyPaste);
+    document.addEventListener("contextmenu", handleContextMenu);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      window.removeEventListener("keydown", handleKeydown, true);
+      document.removeEventListener("copy", handleCopyPaste);
+      document.removeEventListener("paste", handleCopyPaste);
+      document.removeEventListener("contextmenu", handleContextMenu);
     };
   }, [activeModule, currentQuestionIndex, isFinished, isReviewing]);
 
@@ -1894,7 +1923,7 @@ export default function StudentDashboard() {
                       </button>
                     </div>
                   ) : (
-                    <div>
+                    <div className="select-none-all">
                       {/* Anti-Cheating Violation Modal Overlay */}
                       {showWarningModal && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">

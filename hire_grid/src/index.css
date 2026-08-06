@@ -75,3 +75,18 @@ body {
   linear-gradient(90deg, rgba(4, 120, 87, 0.1) 1px, transparent 1px);
   background-size: 30px 30px;
 }
+
+/* Anti-Cheat Print Screen & Selection Protection */
+@media print {
+  html, body, #root, .min-h-screen {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+
+.select-none-all {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
