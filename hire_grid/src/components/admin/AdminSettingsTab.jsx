@@ -128,30 +128,7 @@ export function AdminSettingsTab() {
             />
           </div>
 
-          <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Leaderboard Mode
-            </label>
-            <select
-              value={settings.leaderboardMode || "first_attempt"}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  leaderboardMode: e.target.value,
-                })
-              }
-              className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
-            >
-              <option value="first_attempt">
-                First Attempt Only (Default)
-              </option>
-              <option value="best_attempt">Best Attempt</option>
-            </select>
-            <p className="text-xs text-slate-500">
-              Determines whether the first attempt or the highest score affects
-              the leaderboards and XP.
-            </p>
-          </div>
+
 
           <div className="space-y-2 md:col-span-2">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">

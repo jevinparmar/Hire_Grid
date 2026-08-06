@@ -24,8 +24,7 @@ router.post("/modules", dataController.saveModules);
 router.delete("/modules/:id", dataController.deleteModule);
 router.get("/modules/:id/questions", dataController.getModuleQuestions);
 
-// Leaderboard
-router.get("/leaderboard", dataController.getLeaderboard);
+
 
 // Stats
 router.get("/stats", dataController.getStats);

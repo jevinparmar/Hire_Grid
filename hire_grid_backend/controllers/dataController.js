@@ -361,21 +361,7 @@ exports.getScores = async (req, res) => {
   }
 };
 
-// ================= LEADERBOARD =================
-exports.getLeaderboard = async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT id, name, branch, semester, xp, level 
-       FROM users 
-       WHERE role = 'student' 
-       ORDER BY xp DESC 
-       LIMIT 50`
-    );
-    res.json({ success: true, leaderboard: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+
 
 // ================= STATS =================
 exports.getStats = async (req, res) => {

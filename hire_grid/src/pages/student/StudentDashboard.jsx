@@ -97,7 +97,7 @@ export default function StudentDashboard() {
     streak: 3,
     categoryXP: {},
   });
-  const [leaderboard, setLeaderboard] = useState([]);
+
   const [earnedXP, setEarnedXP] = useState(0);
   const [currentUserDoc, setCurrentUserDoc] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -712,10 +712,7 @@ export default function StudentDashboard() {
     "Other",
   ];
 
-  const sortedLeaderboard = [...leaderboard].sort((a, b) => b.xp - a.xp);
-  const userRank = sortedLeaderboard.findIndex((u) => u.isUser) + 1;
-  const userFlair =
-    userRank > 0 && userRank <= 5 ? getEliteFlair(userRank) : null;
+  const userFlair = null;
 
   if (deviceBlocked) {
     return (
@@ -835,39 +832,7 @@ export default function StudentDashboard() {
             isOpen={sidebarOpen}
           />
 
-          <SidebarItem
-            icon={<Award />}
-            label="Leaderboard"
-            active={
-              activeTab === "leaderboard" && !activeModule && !activeMasterModule
-            }
-            onClick={() => {
-              handleNavClick("leaderboard");
-              // Fetch leaderboard on-demand only when tab is clicked
-              const fetchLb = async () => {
-                try {
-                  const res = await api.get("/leaderboard");
-                  if (res.success && res.leaderboard) {
-                    // Normalize mapping if needed for frontend compat
-                    setLeaderboard(res.leaderboard.map((u, idx) => ({
-                      id: u.id,
-                      name: u.name,
-                      branch: u.branch || "",
-                      rank: idx + 1,
-                      xp: u.xp || 0,
-                      streak: u.streak || 3,
-                      level: u.level || 1,
-                      isUser: u.id === auth.currentUser?.uid
-                    })));
-                  }
-                } catch (e) {
-                  console.error("Leaderboard fetch error:", e);
-                }
-              };
-              fetchLb();
-            }}
-            isOpen={sidebarOpen}
-          />
+
 
           <SidebarItem
             icon={<CreditCard />}
@@ -1294,44 +1259,6 @@ export default function StudentDashboard() {
                         )}
                       </div>
                     )}
-                  </div>
-                )}
-
-                {activeTab === "leaderboard" && (
-                  <div className="max-w-4xl mx-auto space-y-6">
-                    <div className="glass-panel rounded-2xl shadow-sm border border-emerald-500/20 p-6 sm:p-8 transition-colors">
-                      <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 mb-6 flex items-center transition-colors">
-                        <Award className="h-7 w-7 mr-3 text-emerald-800 dark:text-lime-400" />
-                        Global Leaderboard (Top 50)
-                      </h4>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="border-b border-emerald-500/20 text-slate-500 text-sm font-semibold">
-                              <th className="pb-3">Rank</th>
-                              <th className="pb-3">Name</th>
-                              <th className="pb-3">Branch</th>
-                              <th className="pb-3">Semester</th>
-                              <th className="pb-3 text-right">XP</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-emerald-500/10 text-sm">
-                            {sortedLeaderboard.map((student, idx) => (
-                              <tr
-                                key={student.id}
-                                className={`transition-colors ${student.isUser ? "bg-emerald-500/10 font-bold" : "hover:bg-slate-100/50 dark:hover:bg-slate-800/30"}`}
-                              >
-                                <td className="py-3.5 pr-2 font-mono">{idx + 1}</td>
-                                <td className="py-3.5 font-medium">{student.name}</td>
-                                <td className="py-3.5 text-slate-500">{student.branch}</td>
-                                <td className="py-3.5 text-slate-500">{student.semester ? `Sem ${student.semester}` : "-"}</td>
-                                <td className="py-3.5 text-right text-emerald-600 dark:text-emerald-400 font-bold">{student.xp}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
                   </div>
                 )}
 
