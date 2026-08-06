@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../../lib/api";
 import { Check, X } from "lucide-react";
+import { showToast } from "../common/Toast";
 
 export function AdminDeviceRequestsTab() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchRequests = async () => {
-    setLoading(true);
     try {
       const res = await api.get("/device-requests");
-      if (res.success && res.requests) {
-        setRequests(res.requests);
+      if (res.success) {
+        setRequests(res.requests || []);
       }
     } catch (err) {
       console.error("Fetch device requests error:", err);
@@ -29,7 +29,7 @@ export function AdminDeviceRequestsTab() {
       fetchRequests();
     } catch (err) {
       console.error("Device Request Process Failed", err);
-      alert("Unable to process request: " + (err.message || "Failed"));
+      showToast("Unable to process request: " + (err.message || "Failed"), "error");
     }
   };
 

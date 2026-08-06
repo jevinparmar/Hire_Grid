@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 
 import { collection, db, doc, getDocs, orderBy, query, setDoc } from "../../firebase";
 import { Check, X } from "lucide-react";
+import { showToast } from "../common/Toast";
 
 export function AdminAccessRequestsTab() {
   const [requests, setRequests] = useState([]);
@@ -47,8 +48,9 @@ export function AdminAccessRequestsTab() {
       fetchRequests();
     } catch (err) {
       console.error("Access Request Process Failed", err.code, err.message);
-      alert(
+      showToast(
         "Unable to process request: Permission denied. Please contact administrator.",
+        "error"
       );
     }
   };

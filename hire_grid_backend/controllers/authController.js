@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const otpService = require("../utils/otpService");
 const emailService = require("../utils/emailService");
 
-const JWT_SECRET = process.env.JWT_SECRET || "access_secret";
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRE = process.env.JWT_EXPIRE || "7d";
 
 const formatUserResponse = (user) => {

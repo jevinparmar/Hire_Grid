@@ -15,6 +15,7 @@ import {
 import { logAudit } from "../../auditLogger";
 
 import { api } from "../../lib/api";
+import { showToast } from "../common/Toast";
 
 export function HierarchyBuilder({
   isContentManager = false,
@@ -157,9 +158,9 @@ export function HierarchyBuilder({
       setIsPurchasable(false);
       setSellType("pack");
       setPrice(0);
-      alert("Success: Saved successfully!");
+      showToast("Saved successfully!", "success");
     } catch (err) {
-      alert("Error: " + err.message);
+      showToast("Error: " + err.message, "error");
       handleFirestoreError(err, OperationType.WRITE, "hierarchy_nodes");
     }
   };
@@ -168,7 +169,7 @@ export function HierarchyBuilder({
     if (!deleteNodeInfo) return;
     const node = nodes.find((n) => n.id === deleteNodeInfo.id);
     if (isContentManager && node && node.createdBy && node.createdBy !== userName) {
-      alert("You are not authorized to delete this node. Only the creator or a Super Admin can delete it.");
+      showToast("You are not authorized to delete this node. Only the creator or a Super Admin can delete it.", "warning");
       setDeleteNodeInfo(null);
       return;
     }
@@ -497,7 +498,7 @@ export function HierarchyBuilder({
                 <button
                   onClick={() => {
                     if (isContentManager && node.createdBy && node.createdBy !== userName) {
-                      alert("You are not authorized to edit this node. Only the creator or a Super Admin can edit it.");
+                      showToast("You are not authorized to edit this node. Only the creator or a Super Admin can edit it.", "warning");
                       return;
                     }
                     setIsCreating(true);
@@ -527,7 +528,7 @@ export function HierarchyBuilder({
                 <button
                   onClick={() => {
                     if (isContentManager && node.createdBy && node.createdBy !== userName) {
-                      alert("You are not authorized to delete this node. Only the creator or a Super Admin can delete it.");
+                      showToast("You are not authorized to delete this node. Only the creator or a Super Admin can delete it.", "warning");
                       return;
                     }
                     setDeleteNodeInfo({ id: node.id, name: node.name })

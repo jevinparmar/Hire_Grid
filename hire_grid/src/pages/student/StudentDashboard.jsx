@@ -36,6 +36,7 @@ import { api } from "../../lib/api";
 import { OperationType, auth, collection, db, doc, getDocs, handleFirestoreError, limit, logOut, onSnapshot, orderBy, query, setDoc, where, writeBatch } from "../../firebase";
 
 import { MathText } from "../../components/common/MathText";
+import { showToast } from "../../components/common/Toast";
 
 export default function StudentDashboard() {
   const location = useLocation();
@@ -139,11 +140,8 @@ export default function StudentDashboard() {
     }
   }, [currentUserDoc]);
 
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+
+
 
   useEffect(() => {
     localStorage.setItem("studentSidebarOpen", JSON.stringify(sidebarOpen));
@@ -173,7 +171,7 @@ export default function StudentDashboard() {
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to start assessment: " + err.message);
+      showToast("Failed to start assessment: " + err.message, "error");
     }
   };
 
@@ -222,10 +220,10 @@ export default function StudentDashboard() {
         createdAt: Date.now(),
       });
       setAccessRequestSent((prev) => ({ ...prev, [item.id]: true }));
-      alert("Access request submitted successfully.");
+      showToast("Access request submitted successfully.", "success");
     } catch (err) {
       console.error(err);
-      alert("Failed to submit request.");
+      showToast("Failed to submit request.", "error");
     }
   };
 
@@ -559,8 +557,9 @@ export default function StudentDashboard() {
       setWarningCount((prev) => {
         const nextCount = prev + 1;
         if (nextCount >= 3) {
-          alert(
-            "ANTI-CHEATING SYSTEM VIOLATION: Maximum allowed security warnings exceeded (3/3). Your exam is being automatically submitted immediately."
+          showToast(
+            "ANTI-CHEATING SYSTEM VIOLATION: Maximum allowed security warnings exceeded (3/3). Your exam is being automatically submitted immediately.",
+            "warning", 6000
           );
           handleFinishTest();
         } else {
@@ -617,7 +616,7 @@ export default function StudentDashboard() {
 
   const handleStartModule = async (mod, path) => {
     if (!hasItemAccess(mod, "module", path)) {
-      alert("Access Denied. You do not have permission to view this content.");
+      showToast("Access Denied. You do not have permission to view this content.", "warning");
       return;
     }
 
@@ -638,7 +637,7 @@ export default function StudentDashboard() {
         setShowWarningModal(false);
         setTimeLeft((mod.timeLimit || 30) * 60);
       } catch (err) {
-        alert("Failed to load questions: " + err.message);
+        showToast("Failed to load questions: " + err.message, "error");
       }
     }
   };
@@ -865,7 +864,7 @@ export default function StudentDashboard() {
       setIsProfileOpen(false);
     } catch (err) {
       console.error(err);
-      alert("Failed to save profile");
+      showToast("Failed to save profile", "error");
     }
   };
 
@@ -911,9 +910,9 @@ export default function StudentDashboard() {
                     deviceId,
                     deviceName: navigator.userAgent.includes("Mobile") ? "Mobile Browser" : "Desktop Browser",
                   });
-                  alert("Permission request sent to Super Admin! You will be notified once approved.");
+                  showToast("Permission request sent to Super Admin! You will be notified once approved.", "success");
                 } catch (err) {
-                  alert("Request failed: " + (err.message || "Error submitting request."));
+                  showToast("Request failed: " + (err.message || "Error submitting request."), "error");
                 }
               }}
               className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center justify-center space-x-2"
@@ -2547,7 +2546,7 @@ function StudentFeedbackForm({ currentUser }) {
       setSuccess(true);
       setMessage("");
     } catch (err) {
-      alert("Failed to send feedback: " + err.message);
+      showToast("Failed to send feedback: " + err.message, "error");
     } finally {
       setLoading(false);
     }

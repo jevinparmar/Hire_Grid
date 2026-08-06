@@ -59,9 +59,6 @@ router.put("/payment-requests/:id", dataController.updatePaymentRequest);
 router.get("/hierarchy-nodes", dataController.getHierarchyNodes);
 router.post("/hierarchy-nodes", dataController.saveHierarchyNode);
 router.delete("/hierarchy-nodes/:id", dataController.deleteHierarchyNode);
-router.get("/hierarchy_nodes", dataController.getHierarchyNodes);
-router.post("/hierarchy_nodes", dataController.saveHierarchyNode);
-router.delete("/hierarchy_nodes/:id", dataController.deleteHierarchyNode);
 
 // GATE
 router.get("/gate/branches", dataController.getGateBranches);
@@ -84,15 +81,10 @@ router.delete("/admin_users/:id", dataController.deleteAdminUser);
 // Access & Device Requests
 router.get("/access-requests", dataController.getAccessRequests);
 router.post("/access-requests", dataController.createAccessRequest);
-router.get("/access_requests", dataController.getAccessRequests);
-router.post("/access_requests", dataController.createAccessRequest);
 
 router.get("/device-requests", dataController.getDeviceRequests);
 router.post("/device-requests", dataController.createDeviceRequest);
 router.put("/device-requests/:id", dataController.updateDeviceRequest);
-router.get("/device_requests", dataController.getDeviceRequests);
-router.post("/device_requests", dataController.createDeviceRequest);
-router.put("/device_requests/:id", dataController.updateDeviceRequest);
 
 // Feedbacks
 router.get("/feedbacks", dataController.getFeedbacks);

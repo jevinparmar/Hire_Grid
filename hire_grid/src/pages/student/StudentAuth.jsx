@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ShieldCheck, Mail, Lock, User, ArrowLeft, Timer, CheckCircle, RefreshCw } from "lucide-react";
 import { api, getDeviceId, getDeviceName } from "../../lib/api";
+import { showToast } from "../../components/common/Toast";
 
 export default function StudentAuth() {
   const navigate = useNavigate();
@@ -66,7 +67,7 @@ export default function StudentAuth() {
     setOtpValues(["", "", "", "", "", ""]);
     setResendCooldown(60);
     setView("verify-otp");
-    alert("A verification OTP has been successfully sent to your email ID: " + email);
+    showToast("A verification OTP has been successfully sent to your email ID: " + email, "success");
     setTimeout(() => {
       if (otpInputsRef.current[0]) otpInputsRef.current[0].focus();
     }, 100);
@@ -213,7 +214,7 @@ export default function StudentAuth() {
         email: verificationEmail,
       });
 
-      alert("A new verification OTP has been successfully sent to your email ID: " + verificationEmail);
+      showToast("A new verification OTP has been successfully sent to your email ID: " + verificationEmail, "success");
       setSuccessMessage(res.message || "A new OTP code has been sent.");
       setResendCooldown(60);
       setOtpValues(["", "", "", "", "", ""]);

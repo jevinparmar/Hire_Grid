@@ -413,16 +413,23 @@ async function initDb() {
       await pool.query(`ALTER TABLE hierarchy_nodes ALTER COLUMN title DROP NOT NULL`);
     }
 
-    // Seed Super Admin if not exists
-    const adminCheck = await pool.query(`SELECT * FROM admin_users WHERE email = $1`, ['saumya@admin.com']);
-    if (adminCheck.rows.length === 0) {
-      const hashedPassword = await bcrypt.hash("RadheKrishna", 10);
-      const adminId = "super_admin_saumya";
-      await pool.query(
-        `INSERT INTO admin_users (id, email, password, name, role) VALUES ($1, $2, $3, $4, $5)`,
-        [adminId, 'saumya@admin.com', hashedPassword, 'Saumya', 'admin']
-      );
-      console.log("Super admin user Saumya seeded successfully.");
+    // Seed Super Admin if not exists (credentials from env vars)
+    const seedEmail = process.env.ADMIN_EMAIL;
+    const seedPassword = process.env.ADMIN_PASSWORD;
+    const seedName = process.env.ADMIN_NAME || "Admin";
+    if (seedEmail && seedPassword) {
+      const adminCheck = await pool.query(`SELECT id FROM admin_users WHERE email = $1`, [seedEmail]);
+      if (adminCheck.rows.length === 0) {
+        const hashedPassword = await bcrypt.hash(seedPassword, 10);
+        const adminId = "super_admin_" + seedName.toLowerCase().replace(/\s+/g, "_");
+        await pool.query(
+          `INSERT INTO admin_users (id, email, password, name, role) VALUES ($1, $2, $3, $4, $5)`,
+          [adminId, seedEmail, hashedPassword, seedName, 'admin']
+        );
+        console.log(`Super admin user ${seedName} seeded successfully.`);
+      }
+    } else {
+      console.log("ADMIN_EMAIL/ADMIN_PASSWORD not set in .env — skipping admin seed.");
     }
 
     console.log("Database tables created/verified successfully.");

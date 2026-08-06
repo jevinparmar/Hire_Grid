@@ -28,6 +28,7 @@ import {
   PlayCircle,
 } from "lucide-react";
 import { logAudit } from "../../auditLogger";
+import { showToast } from "../common/Toast";
 
 export function AdminPlansTab({ userName }) {
   const [plans, setPlans] = useState([]);
@@ -243,9 +244,9 @@ export function AdminPlansTab({ userName }) {
       setCompanyModules([]);
       setFreeDemoModules([]);
       setCompanyBranches([]);
-      alert("Plan saved successfully!");
+      showToast("Plan saved successfully!", "success");
     } catch (err) {
-      alert("Error saving plan: " + err.message);
+      showToast("Error saving plan: " + err.message, "error");
     }
   };
 
@@ -270,9 +271,9 @@ export function AdminPlansTab({ userName }) {
       await api.delete(`/plans/${planId}`).catch(() => {});
       await deleteDoc(doc(db, "plans", planId));
       await logAudit(userName, `Deleted subscription plan: ${planName}`);
-      alert("Plan deleted successfully!");
+      showToast("Plan deleted successfully!", "success");
     } catch (err) {
-      alert("Error deleting plan: " + err.message);
+      showToast("Error deleting plan: " + err.message, "error");
     }
   };
 

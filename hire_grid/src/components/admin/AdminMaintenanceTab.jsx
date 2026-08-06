@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 
 import { collection, db, doc, getDocs, writeBatch } from "../../firebase";
 import { Database, AlertTriangle, CheckCircle } from "lucide-react";
+import { showToast } from "../common/Toast";
 
 export function AdminMaintenanceTab() {
   const [stats, setStats] = useState({
@@ -178,7 +179,7 @@ export function AdminMaintenanceTab() {
       await fetchStats();
     } catch (err) {
       console.error(err);
-      alert("Error during cleanup: " + err);
+      showToast("Error during cleanup: " + err.message, "error");
     } finally {
       setIsCleaning(false);
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { OperationType, collection, db, deleteDoc, doc, getDoc, getDocs, handleFirestoreError, onSnapshot, query, setDoc, updateDoc, where, writeBatch } from "../../firebase";
 import { api } from "../../lib/api";
+import { showToast } from "../common/Toast";
 
 import { Trash2, UserPlus, ShieldCheck, Pencil } from "lucide-react";
 import { ConfirmDialog } from "../common/ConfirmDialog";
@@ -62,17 +63,17 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
       await api.put(`/users/${studentId}`, { maxDevices: newLimit });
       fetchStudents();
     } catch (err) {
-      alert("Failed to update device limit: " + (err.message || "Error"));
+      showToast("Failed to update device limit: " + (err.message || "Error"), "error");
     }
   };
 
   const handleResetDevices = async (studentId) => {
     try {
       await api.put(`/users/${studentId}`, { allowedDevices: [], deviceId: null });
-      alert("Student device registrations reset successfully.");
+      showToast("Student device registrations reset successfully.", "success");
       fetchStudents();
     } catch (err) {
-      alert("Failed to reset devices: " + (err.message || "Error"));
+      showToast("Failed to reset devices: " + (err.message || "Error"), "error");
     }
   };
 
@@ -227,7 +228,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
         setSelectedItemId("");
         setSelectedDuration("permanent");
         setError("");
-        alert("Subscription plan assigned successfully.");
+        showToast("Subscription plan assigned successfully.", "success");
         fetchStudents();
         return;
       }
@@ -259,7 +260,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
       setSelectedItemId("");
       setSelectedDuration("permanent");
       setError("");
-      alert("Access granted successfully.");
+      showToast("Access granted successfully.", "success");
       fetchStudents();
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, "users");
@@ -315,8 +316,9 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
 
   const initiateDeleteStudent = (studentId, name) => {
     if (!isSuperAdmin) {
-      alert(
+      showToast(
         "Permission Denied: Only Super Admins can permanently delete users.",
+        "warning"
       );
       return;
     }

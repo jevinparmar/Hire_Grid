@@ -22,6 +22,7 @@ import { ConfirmDialog } from "../common/ConfirmDialog";
 import { SortableList } from "../common/SortableList";
 
 import { logAudit } from "../../auditLogger";
+import { showToast } from "../common/Toast";
 
 const getSafeUUID = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -154,12 +155,12 @@ export function AdminModulesTab({
   const handleSaveEditedQuestion = () => {
     if (editingQuestionIndex === null) return;
     if (!editingQuestionForm.question.trim()) {
-      alert("Question text cannot be empty.");
+      showToast("Question text cannot be empty.", "warning");
       return;
     }
     for (let i = 0; i < 4; i++) {
       if (!editingQuestionForm.options[i] || !editingQuestionForm.options[i].trim()) {
-        alert(`Option ${String.fromCharCode(65 + i)} cannot be empty.`);
+        showToast(`Option ${String.fromCharCode(65 + i)} cannot be empty.`, "warning");
         return;
       }
     }
@@ -731,7 +732,7 @@ export function AdminModulesTab({
         );
       }
 
-      alert(editingModuleId ? "Success: Module updated successfully!" : "Success: Module published successfully!");
+      showToast(editingModuleId ? "Module updated successfully!" : "Module published successfully!", "success");
 
       setIsCreating(false);
       setEditingModuleId(null);
@@ -749,7 +750,7 @@ export function AdminModulesTab({
       handleFirestoreError(err, OperationType.WRITE, "modules");
       const errMsg = err.message || "Failed to save module to database.";
       setError(errMsg);
-      alert("Error: " + errMsg);
+      showToast("Error: " + errMsg, "error");
     }
   };
 
@@ -820,7 +821,7 @@ export function AdminModulesTab({
         );
       }
 
-      alert(editingModuleId ? "Success: Master Module updated successfully!" : "Success: Master Module published successfully!");
+      showToast(editingModuleId ? "Master Module updated successfully!" : "Master Module published successfully!", "success");
 
       setIsCreatingMaster(false);
       setEditingModuleId(null);
@@ -836,7 +837,7 @@ export function AdminModulesTab({
       handleFirestoreError(err, OperationType.WRITE, "modules");
       const errMsg = err.message || "Failed to save master module to database.";
       setError(errMsg);
-      alert("Error: " + errMsg);
+      showToast("Error: " + errMsg, "error");
     }
   };
 
@@ -876,7 +877,7 @@ export function AdminModulesTab({
       }
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, "modules");
-      alert(`Failed to delete module: ${err.message}`);
+      showToast(`Failed to delete module: ${err.message}`, "error");
     } finally {
       setDeleteModuleInfo(null);
     }
@@ -885,8 +886,9 @@ export function AdminModulesTab({
   const initiateDeleteModule = (id, moduleTitle) => {
     const mod = modules.find((m) => m.id === id);
     if (isContentManager && mod && mod.createdBy !== userName) {
-      alert(
+      showToast(
         "You are not authorized to delete this module. Only the creator or a Super Admin can delete it.",
+        "warning"
       );
       return;
     }
@@ -895,7 +897,7 @@ export function AdminModulesTab({
 
   const handleEditModule = async (m) => {
     if (isContentManager && m.createdBy && m.createdBy !== userName) {
-      alert("You are not authorized to edit this module. Only the creator or a Super Admin can edit it.");
+      showToast("You are not authorized to edit this module. Only the creator or a Super Admin can edit it.", "warning");
       return;
     }
 
@@ -906,7 +908,7 @@ export function AdminModulesTab({
         const res = await api.get(`/modules/${m.id}/questions`);
         fetchedQuestions = res.questions || [];
       } catch (err) {
-        alert("Failed to load questions for editing: " + err.message);
+        showToast("Failed to load questions for editing: " + err.message, "error");
       }
     }
 
@@ -1617,8 +1619,9 @@ CRITICAL RULES FOR PREMIUM SVG GENERATION (MANDATORY IF USING SVG):
 
 Please generate the requested JSON now.`;
                       navigator.clipboard.writeText(externalAIPrompt);
-                      alert(
+                      showToast(
                         "Prompt copied to clipboard! Paste it into any AI to generate questions.",
+                        "success"
                       );
                     }}
                     className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-xs font-medium rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors"
@@ -2233,7 +2236,7 @@ Please generate the requested JSON now.`;
                             const res = await api.get(`/modules/${module.id}/questions`);
                             setPreviewModule({ ...module, questions: res.questions || [] });
                           } catch (err) {
-                            alert("Failed to load questions for preview: " + err.message);
+                            showToast("Failed to load questions for preview: " + err.message, "error");
                           }
                         }}
                         className="flex items-center px-3 py-1.5 rounded-lg text-sm font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 transition-colors"

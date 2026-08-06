@@ -4,6 +4,7 @@ import { collection, db, doc, onSnapshot, query, setDoc, where } from "../../fir
 import { Lock, ChevronRight, Play } from "lucide-react";
 import { PackagePreviewView } from "./PackagePreviewView";
 import { hasAccess as globalHasAccess } from "../../lib/accessControl";
+import { showToast } from "../common/Toast";
 
 export function StudentHierarchyView({
   currentUser,
@@ -89,10 +90,10 @@ export function StudentHierarchyView({
         createdAt: Date.now(),
       });
       setAccessRequestSent((prev) => ({ ...prev, [item.id]: true }));
-      alert("Access request submitted successfully.");
+      showToast("Access request submitted successfully.", "success");
     } catch (err) {
       console.error(err);
-      alert("Failed to submit request.");
+      showToast("Failed to submit request.", "error");
     }
   };
 

@@ -16,6 +16,7 @@ import { ConfirmDialog } from "../common/ConfirmDialog";
 import { SortableList } from "../common/SortableList";
 
 import { api } from "../../lib/api";
+import { showToast } from "../common/Toast";
 
 export function AdminCompaniesTab({
   isContentManager = false,
@@ -186,7 +187,7 @@ export function AdminCompaniesTab({
     if (!deleteId) return;
     const company = companies.find((c) => c.id === deleteId);
     if (isContentManager && company && company.createdBy && company.createdBy !== userName) {
-      alert("You are not authorized to delete this company. Only the creator or a Super Admin can delete it.");
+      showToast("You are not authorized to delete this company. Only the creator or a Super Admin can delete it.", "warning");
       setDeleteId(null);
       return;
     }
@@ -205,7 +206,7 @@ export function AdminCompaniesTab({
   const handleEdit = (c, e) => {
     e.stopPropagation();
     if (isContentManager && c.createdBy && c.createdBy !== userName) {
-      alert("You are not authorized to edit this company. Only the creator or a Super Admin can edit it.");
+      showToast("You are not authorized to edit this company. Only the creator or a Super Admin can edit it.", "warning");
       return;
     }
     setIsCreating(true);
@@ -537,7 +538,7 @@ export function AdminCompaniesTab({
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isContentManager && c.createdBy && c.createdBy !== userName) {
-                          alert("You are not authorized to delete this company. Only the creator or a Super Admin can delete it.");
+                          showToast("You are not authorized to delete this company. Only the creator or a Super Admin can delete it.", "warning");
                           return;
                         }
                         setDeleteId(c.id);
