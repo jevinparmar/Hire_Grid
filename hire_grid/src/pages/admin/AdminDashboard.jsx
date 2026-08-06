@@ -22,8 +22,16 @@ import { AdminPlansTab } from "../../components/admin/AdminPlansTab";
 export default function AdminDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
-  const role = location.state?.role;
-  const userName = location.state?.name || "Admin";
+  const savedUserStr = localStorage.getItem("user");
+  let savedUser = null;
+  try {
+    savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
+  } catch (e) {
+    console.error("Failed to parse user from localStorage", e);
+  }
+
+  const role = location.state?.role || savedUser?.role;
+  const userName = location.state?.name || savedUser?.name || "Admin";
 
   const [activeWorkspace, setActiveWorkspace] = useState("premium");
   const [activeSubTab, setActiveSubTab] = useState("requests");
