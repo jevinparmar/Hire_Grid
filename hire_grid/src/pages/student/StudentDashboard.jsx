@@ -386,104 +386,26 @@ export default function StudentDashboard() {
   useEffect(() => {
     if (!auth.currentUser) return;
 
-    // Subscribe to leaderboard
-    const lbQuery = query(
-      collection(db, "users"),
-      orderBy("xp", "desc"),
-      limit(200),
-    );
-    const unsubLb = onSnapshot(
-      lbQuery,
-      (snapshot) => {
-        const lb = [];
-        let foundUser = false;
-        snapshot.docs.forEach((docSnap, idx) => {
-          const u = docSnap.data();
-          const isUser = docSnap.id === auth.currentUser?.uid;
-          if (isUser) foundUser = true;
-          const pseudoScore = Math.min(
-            100,
-            Math.floor(80 + ((u.xp || 0) % 20)),
-          );
-          const pseudoAccuracy = Math.min(
-            100,
-            Math.floor(75 + ((u.xp || 0) % 25)),
-          );
-          const pseudoMovement = ((idx + (u.xp || 0)) % 5) - 2; // -2 to 2
-          lb.push({
-            id: docSnap.id,
-            name: u.name || (u.email ? u.email.split("@")[0] : "Student"),
-            photoURL: u.photoURL,
-            branch: u.branch || "",
-            rank: idx + 1,
-            xp: u.xp || 0,
-            categoryXP: u.categoryXP || {},
-            streak: u.streak || Math.floor(Math.random() * 5 + 1),
-            score: pseudoScore,
-            accuracy: pseudoAccuracy,
-            movement: pseudoMovement,
-            isUser,
-          });
-        });
-        if (!foundUser && auth.currentUser) {
-          lb.push({
-            id: auth.currentUser.uid,
-            name: user.name || "You",
-            photoURL: "",
-            branch: profileForm.branch,
-            rank: lb.length + 1,
-            xp: stats.xp,
-            categoryXP: stats.categoryXP,
-            streak: stats.streak,
-            score: 85,
-            accuracy: 90,
-            movement: 0,
-            isUser: true,
-          });
-        }
-        setLeaderboard(lb);
-      },
-      (error) => handleFirestoreError(error, OperationType.LIST, "users"),
-    );
+    // Fetch master data once on mount
+    const fetchMasterData = async () => {
+      try {
+        const [modsSnap, compSnap, examsSnap, plansSnap] = await Promise.all([
+          getDocs(query(collection(db, "modules"), orderBy("createdAt", "asc"))),
+          getDocs(collection(db, "companies")),
+          getDocs(collection(db, "exams")),
+          getDocs(collection(db, "plans"))
+        ]);
+        setModules(modsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setCompanies(compSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setExams(examsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setPlans(plansSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        console.error("Error loading dashboard metadata:", err);
+      }
+    };
+    fetchMasterData();
 
-    // Subscribe to modules
-    const unsubMods = onSnapshot(
-      query(collection(db, "modules"), orderBy("createdAt", "asc")),
-      (snapshot) => {
-        const mods = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setModules(mods);
-      },
-      (error) => handleFirestoreError(error, OperationType.LIST, "modules"),
-    );
-
-    // Subscribe to companies
-    const unsubCompanies = onSnapshot(
-      collection(db, "companies"),
-      (snapshot) => {
-        setCompanies(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-      },
-      (error) => handleFirestoreError(error, OperationType.LIST, "companies"),
-    );
-
-    // Subscribe to exams
-    const unsubExams = onSnapshot(
-      collection(db, "exams"),
-      (snapshot) => {
-        setExams(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-      },
-      (error) => handleFirestoreError(error, OperationType.LIST, "exams"),
-    );
-
-    // Subscribe to plans
-    const unsubPlans = onSnapshot(
-      collection(db, "plans"),
-      (snapshot) => {
-        setPlans(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-      },
-      (error) => handleFirestoreError(error, OperationType.LIST, "plans"),
-    );
-
-    // Subscribe to user stats
+    // Subscribe to user stats only
     const unsubUser = onSnapshot(
       doc(db, "users", auth.currentUser.uid),
       (docSnap) => {
@@ -504,20 +426,12 @@ export default function StudentDashboard() {
             universityName: d.universityName || prev.universityName,
             graduationYear: d.graduationYear || prev.graduationYear,
           }));
-          if (d.role !== "student" && d.role !== "admin") {
-            // just in case
-          }
         }
       },
       (error) => handleFirestoreError(error, OperationType.GET, "users"),
     );
 
     return () => {
-      unsubLb();
-      unsubMods();
-      unsubCompanies();
-      unsubExams();
-      unsubPlans();
       unsubUser();
     };
   }, [auth.currentUser?.uid]);
@@ -660,122 +574,38 @@ export default function StudentDashboard() {
     exitFullscreen();
     setShowWarningModal(false);
     setIsFinished(true);
-    let finalScore = 0;
-    let correctCount = 0;
-    // Default module marking
-    const modPositive =
-      activeModule.marksPerQuestion !== undefined
-        ? Number(activeModule.marksPerQuestion)
-        : 1;
-    const modNegative =
-      activeModule.negativeMarks !== undefined
-        ? Number(activeModule.negativeMarks)
-        : 0.5;
-    // Calculate max possible score if not explicitly set
-    let maxPossibleScore = Number(activeModule.totalMarks) || 0;
-    if (!maxPossibleScore) {
-      activeModule.questions.forEach((q) => {
-        maxPossibleScore +=
-          q.positiveMarksOverride !== undefined
-            ? Number(q.positiveMarksOverride)
-            : modPositive;
-      });
-    }
-
-    activeModule.questions.forEach((q) => {
-      const qPos =
-        q.positiveMarksOverride !== undefined
-          ? Number(q.positiveMarksOverride)
-          : modPositive;
-      const qNeg =
-        q.negativeMarksOverride !== undefined
-          ? Number(q.negativeMarksOverride)
-          : modNegative;
-
-      if (answers[q.id] === q.correctAnswerIndex) {
-        finalScore += qPos;
-        correctCount += 1;
-      } else if (answers[q.id] !== undefined) {
-        finalScore -= qNeg;
-      }
-    });
-
-    finalScore = Math.max(0, finalScore); // Avoid negative total score globally? Requirements say: Score = (Correct * Pos) - (Wrong * Neg). Typically can be negative, but let's clamp at 0 for generic.
-    // Wait, the new requirement says Percentage is stored. We store percentage separately.
-    const rawPercentage =
-      maxPossibleScore > 0 ? (finalScore / maxPossibleScore) * 100 : 0;
-    const percentage = Math.round(rawPercentage);
-    const accuracy = Math.round(
-      (correctCount / activeModule.questions.length) * 100,
-    );
-
-    const newScores = {
-      ...moduleScores,
-      [activeModule.id]: Math.max(
-        percentage,
-        moduleScores[activeModule.id] || 0,
-      ),
-    };
-
-    // XP Calculation
-    const isPassed = percentage >= (activeModule.passPercentage || 60);
-    let gainedXP = 0;
-    const isFirstTime = moduleScores[activeModule.id] === undefined;
 
     try {
-      // Earn XP strictly on the first attempt
-      if (isFirstTime) {
-        gainedXP = finalScore;
-        const newXP = stats.xp + finalScore;
+      // POST answers to the secure backend scoring endpoint
+      const result = await api.post("/scores", {
+        moduleId: activeModule.id,
+        answers
+      });
 
-        const newCategoryXP = { ...stats.categoryXP };
-        const type = activeModule.moduleType || "general";
+      if (result.success) {
+        const percentage = result.score;
+        const correctCount = result.correctCount;
+        const totalQ = result.totalQuestions;
+        const gainedXP = result.xpEarned;
 
-        if (type === "general") {
-          newCategoryXP.general = (newCategoryXP.general || 0) + finalScore;
-        } else if (type === "company" && activeModule.parentId) {
-          if (!newCategoryXP.companies) newCategoryXP.companies = {};
-          newCategoryXP.companies[activeModule.parentId] =
-            (newCategoryXP.companies[activeModule.parentId] || 0) + finalScore;
-        } else if (type === "exam" && activeModule.parentId) {
-          if (!newCategoryXP.exams) newCategoryXP.exams = {};
-          newCategoryXP.exams[activeModule.parentId] =
-            (newCategoryXP.exams[activeModule.parentId] || 0) + finalScore;
-        }
-
-        const currentUserSnap = await getDocs(
-          query(
-            collection(db, "users"),
-            where("__name__", "==", auth.currentUser.uid),
+        const newScores = {
+          ...moduleScores,
+          [activeModule.id]: Math.max(
+            percentage,
+            moduleScores[activeModule.id] || 0,
           ),
-        );
-        let userData = {};
-        if (!currentUserSnap.empty) {
-          userData = currentUserSnap.docs[0].data();
-        }
+        };
 
-        const testsTaken = (userData.firstAttemptTestsTaken || 0) + 1;
-        const totalPercentage =
-          (userData.firstAttemptTotalPercentage || 0) + percentage;
-        const totalAccuracy =
-          (userData.firstAttemptTotalAccuracy || 0) + accuracy;
-
-        await updateDoc(doc(db, "users", auth.currentUser.uid), {
-          xp: newXP,
-          categoryXP: newCategoryXP,
-          firstAttemptTotalScore: newXP,
-          firstAttemptTestsTaken: testsTaken,
-          firstAttemptTotalPercentage: totalPercentage,
-          firstAttemptTotalAccuracy: totalAccuracy,
-          updatedAt: Date.now(),
-        });
+        setEarnedXP(gainedXP);
+        setModuleScores(newScores);
+        showToast(`Test finished successfully! Score: ${percentage}%, XP Earned: ${gainedXP}`, "success");
+      } else {
+        showToast("Error scoring test: " + (result.error || "Unknown error"), "error");
       }
     } catch (err) {
-      console.error("Score state error:", err);
+      console.error("Score submission error:", err);
+      showToast("Submission failed: " + err.message, "error");
     }
-
-    setEarnedXP(gainedXP);
-    setModuleScores(newScores);
   };
 
   const handleNextQuestion = () => {
@@ -1002,6 +832,40 @@ export default function StudentDashboard() {
               activeTab === "feedback" && !activeModule && !activeMasterModule
             }
             onClick={() => handleNavClick("feedback")}
+            isOpen={sidebarOpen}
+          />
+
+          <SidebarItem
+            icon={<Award />}
+            label="Leaderboard"
+            active={
+              activeTab === "leaderboard" && !activeModule && !activeMasterModule
+            }
+            onClick={() => {
+              handleNavClick("leaderboard");
+              // Fetch leaderboard on-demand only when tab is clicked
+              const fetchLb = async () => {
+                try {
+                  const res = await api.get("/leaderboard");
+                  if (res.success && res.leaderboard) {
+                    // Normalize mapping if needed for frontend compat
+                    setLeaderboard(res.leaderboard.map((u, idx) => ({
+                      id: u.id,
+                      name: u.name,
+                      branch: u.branch || "",
+                      rank: idx + 1,
+                      xp: u.xp || 0,
+                      streak: u.streak || 3,
+                      level: u.level || 1,
+                      isUser: u.id === auth.currentUser?.uid
+                    })));
+                  }
+                } catch (e) {
+                  console.error("Leaderboard fetch error:", e);
+                }
+              };
+              fetchLb();
+            }}
             isOpen={sidebarOpen}
           />
 
@@ -1430,6 +1294,44 @@ export default function StudentDashboard() {
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {activeTab === "leaderboard" && (
+                  <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="glass-panel rounded-2xl shadow-sm border border-emerald-500/20 p-6 sm:p-8 transition-colors">
+                      <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 mb-6 flex items-center transition-colors">
+                        <Award className="h-7 w-7 mr-3 text-emerald-800 dark:text-lime-400" />
+                        Global Leaderboard (Top 50)
+                      </h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-emerald-500/20 text-slate-500 text-sm font-semibold">
+                              <th className="pb-3">Rank</th>
+                              <th className="pb-3">Name</th>
+                              <th className="pb-3">Branch</th>
+                              <th className="pb-3">Semester</th>
+                              <th className="pb-3 text-right">XP</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-emerald-500/10 text-sm">
+                            {sortedLeaderboard.map((student, idx) => (
+                              <tr
+                                key={student.id}
+                                className={`transition-colors ${student.isUser ? "bg-emerald-500/10 font-bold" : "hover:bg-slate-100/50 dark:hover:bg-slate-800/30"}`}
+                              >
+                                <td className="py-3.5 pr-2 font-mono">{idx + 1}</td>
+                                <td className="py-3.5 font-medium">{student.name}</td>
+                                <td className="py-3.5 text-slate-500">{student.branch}</td>
+                                <td className="py-3.5 text-slate-500">{student.semester ? `Sem ${student.semester}` : "-"}</td>
+                                <td className="py-3.5 text-right text-emerald-600 dark:text-emerald-400 font-bold">{student.xp}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1996,7 +1898,7 @@ export default function StudentDashboard() {
                             Total Questions
                           </span>
                           <span className="text-2xl font-black text-slate-800 dark:text-slate-200">
-                            {activeModule.questions.length}
+                            {activeModule.questionCount || (activeModule.questions || []).length}
                           </span>
                         </div>
                         <div className="flex flex-col items-center">

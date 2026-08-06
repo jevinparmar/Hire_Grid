@@ -275,10 +275,24 @@ async function initDb() {
         CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
       `);
     } else {
-      console.log("Database tables already exist. Running schema verification and migrations...");
+      console.log("Database tables already exist. Checking migrations state...");
     }
 
-     await pool.query(`
+    // Create schema_migrations table if not exists and check if migrations have already run
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        version VARCHAR(255) PRIMARY KEY,
+        run_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    const migrationCheck = await pool.query(`SELECT 1 FROM schema_migrations WHERE version = 'v1'`);
+    if (migrationCheck.rows.length > 0) {
+      console.log("Database migrations are already up-to-date (v1). Skipping heavy migrations check.");
+      // Skip the rest of initDb
+    } else {
+      console.log("Running one-time schema alterations and index creations...");
+      await pool.query(`
        DROP TABLE IF EXISTS scores, gate_scores, notifications, audit_logs CASCADE;
 
        CREATE TABLE IF NOT EXISTS plan_mappings (
@@ -432,8 +446,10 @@ async function initDb() {
       console.log("ADMIN_EMAIL/ADMIN_PASSWORD not set in .env — skipping admin seed.");
     }
 
+    // Insert schema migration v1 to skip future alters
+    await pool.query(`INSERT INTO schema_migrations (version) VALUES ('v1') ON CONFLICT DO NOTHING`);
     console.log("Database tables created/verified successfully.");
-
+    } // End of migrations run block
   } catch (err) {
     console.error("Database initialization failed:", err.message);
   }

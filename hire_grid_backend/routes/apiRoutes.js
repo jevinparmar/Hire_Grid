@@ -30,6 +30,10 @@ router.get("/leaderboard", dataController.getLeaderboard);
 // Stats
 router.get("/stats", dataController.getStats);
 
+// Scores
+router.get("/scores", dataController.getScores);
+router.post("/scores", dataController.submitScore);
+
 // Companies
 router.get("/companies", dataController.getCompanies);
 router.post("/companies", dataController.saveCompany);

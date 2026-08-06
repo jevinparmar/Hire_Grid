@@ -112,10 +112,10 @@ exports.getModules = async (req, res) => {
     const { sql, values } = applyQueryModifiers(baseQuery, req.query, 'COALESCE(m.display_order, 999999) ASC, m.created_at ASC');
     const result = await pool.query(sql, values);
     
-    // Fill mock questions array of the correct length so frontend doesn't break
+    // Return questionCount and keep questions empty to optimize payload size
     const formattedModules = result.rows.map(r => ({
       ...r,
-      questions: Array(parseInt(r.questionCount, 10)).fill({})
+      questions: []
     }));
     
     res.json({ success: true, modules: formattedModules });
@@ -246,20 +246,126 @@ exports.deleteModule = async (req, res) => {
   }
 };
 
-// ================= SCORES (REMOVED) =================
+// ================= SCORES (SECURED & RESTORED) =================
 exports.submitScore = async (req, res) => {
-  res.json({ success: true });
+  const { moduleId, answers = {} } = req.body;
+  const userId = req.user ? req.user.id : null;
+
+  if (!userId || !moduleId) {
+    return res.status(400).json({ error: "Missing required fields." });
+  }
+
+  try {
+    // 1. Fetch module configuration
+    const modRes = await pool.query("SELECT * FROM modules WHERE id = $1", [moduleId]);
+    if (modRes.rows.length === 0) {
+      return res.status(404).json({ error: "Module not found." });
+    }
+    const activeModule = modRes.rows[0];
+    const modPositive = activeModule.marks_per_question !== null ? Number(activeModule.marks_per_question) : 1;
+    const modNegative = activeModule.negative_marks !== null ? Number(activeModule.negative_marks) : 0.5;
+
+    // 2. Fetch correct answers from DB
+    const questionsRes = await pool.query(
+      "SELECT id, correct_answer_index, positive_marks_override FROM questions WHERE module_id = $1",
+      [moduleId]
+    );
+    const dbQuestions = questionsRes.rows;
+
+    let finalScore = 0;
+    let correctCount = 0;
+    let maxPossibleScore = Number(activeModule.total_marks) || 0;
+
+    if (!maxPossibleScore) {
+      dbQuestions.forEach((q) => {
+        const qPos = q.positive_marks_override !== null ? Number(q.positive_marks_override) : modPositive;
+        maxPossibleScore += qPos;
+      });
+    }
+
+    dbQuestions.forEach((q) => {
+      const qPos = q.positive_marks_override !== null ? Number(q.positive_marks_override) : modPositive;
+      const qNeg = modNegative; 
+
+      const studentAnswer = answers[q.id];
+      if (studentAnswer !== undefined && studentAnswer !== null) {
+        if (Number(studentAnswer) === Number(q.correct_answer_index)) {
+          finalScore += qPos;
+          correctCount += 1;
+        } else {
+          finalScore -= qNeg;
+        }
+      }
+    });
+
+    finalScore = Math.max(0, finalScore);
+    const scorePercentage = maxPossibleScore > 0 ? Math.round((finalScore / maxPossibleScore) * 100) : 0;
+    const xpEarned = correctCount * 10;
+
+    // 3. Save score to users JSONB moduleScores column
+    const userRes = await pool.query("SELECT xp, module_scores FROM users WHERE id = $1", [userId]);
+    if (userRes.rows.length > 0) {
+      const dbUser = userRes.rows[0];
+      const currentXP = Number(dbUser.xp) || 0;
+      let moduleScores = dbUser.module_scores || {};
+      if (typeof moduleScores === "string") {
+        try {
+          moduleScores = JSON.parse(moduleScores);
+        } catch (e) {
+          moduleScores = {};
+        }
+      }
+      // Store or update score if new is higher
+      const prevScore = moduleScores[moduleId];
+      if (prevScore === undefined || scorePercentage > Number(prevScore)) {
+        moduleScores[moduleId] = scorePercentage;
+        const newXP = currentXP + xpEarned;
+        const newLevel = Math.max(1, Math.floor(newXP / 100) + 1);
+
+        await pool.query(
+          "UPDATE users SET module_scores = $1, xp = $2, level = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4",
+          [JSON.stringify(moduleScores), newXP, newLevel, userId]
+        );
+      }
+    }
+
+    res.json({
+      success: true,
+      score: scorePercentage,
+      correctCount,
+      totalQuestions: dbQuestions.length,
+      xpEarned
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 exports.getScores = async (req, res) => {
-  res.json({ success: true, scores: [] });
+  const userId = req.user ? req.user.id : null;
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  try {
+    const result = await pool.query("SELECT module_scores FROM users WHERE id = $1", [userId]);
+    if (result.rows.length > 0) {
+      let scores = result.rows[0].module_scores || {};
+      if (typeof scores === "string") {
+        scores = JSON.parse(scores);
+      }
+      return res.json({ success: true, scores });
+    }
+    res.json({ success: true, scores: {} });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ================= LEADERBOARD =================
 exports.getLeaderboard = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, email, role, branch, semester, xp, level, rank, specialization 
+      `SELECT id, name, branch, semester, xp, level 
        FROM users 
        WHERE role = 'student' 
        ORDER BY xp DESC 
@@ -1128,7 +1234,7 @@ exports.getModuleQuestions = async (req, res) => {
       }
     }
     const result = await pool.query(
-      `SELECT id, question, options, correct_answer_index AS "correctAnswerIndex", svg_code AS "svgCode", display_order AS "displayOrder"
+      `SELECT id, question, options, svg_code AS "svgCode", display_order AS "displayOrder"
        FROM questions
        WHERE module_id = $1
        ORDER BY display_order ASC`,

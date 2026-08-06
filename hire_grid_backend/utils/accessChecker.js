@@ -79,37 +79,35 @@ async function verifyUserItemAccess(userId, itemId, itemType = "module") {
       }
     } else if (itemType === "module") {
       if (item.module_type === "company" && item.parent_id) {
-        const planCheck = await pool.query(
+        const planCheckCompany = await pool.query(
           `SELECT 1 FROM plan_mappings WHERE company_id = $1 
            UNION 
            SELECT 1 FROM plans WHERE company_modules @> $2::jsonb`,
           [item.parent_id, JSON.stringify([item.parent_id])]
         );
-        if (planCheck.rows.length > 0) {
+        if (planCheckCompany.rows.length > 0) {
           isIncludedInAnyPlan = true;
         }
       } else {
-        let ancestorIds = [item.id];
-        let currentParentId = item.parent_id;
-        while (currentParentId) {
-          ancestorIds.push(currentParentId);
-          const parentNodeRes = await pool.query(
-            "SELECT parent_id FROM hierarchy_nodes WHERE id = $1",
-            [currentParentId]
-          );
-          if (parentNodeRes.rows.length > 0) {
-            currentParentId = parentNodeRes.rows[0].parent_id;
-          } else {
-            currentParentId = null;
-          }
-        }
+        // Single database query with WITH RECURSIVE to fetch all ancestor node IDs in one roundtrip
+        const ancestorRes = await pool.query(
+          `WITH RECURSIVE ancestors AS (
+             SELECT id, parent_id FROM hierarchy_nodes WHERE id = $1
+             UNION ALL
+             SELECT hn.id, hn.parent_id FROM hierarchy_nodes hn
+             INNER JOIN ancestors a ON a.parent_id = hn.id
+           )
+           SELECT id FROM ancestors`,
+          [item.parent_id]
+        );
+        const ancestorIds = [item.id, ...ancestorRes.rows.map((row) => row.id)];
 
-        const planCheck = await pool.query(
+        const planCheckAncestors = await pool.query(
           `SELECT 1 FROM plans p, jsonb_array_elements_text(p.learning_content) lc
            WHERE lc = ANY($1)`,
           [ancestorIds]
         );
-        if (planCheck.rows.length > 0) {
+        if (planCheckAncestors.rows.length > 0) {
           isIncludedInAnyPlan = true;
         }
       }

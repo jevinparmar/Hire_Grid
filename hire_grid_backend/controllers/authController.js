@@ -226,25 +226,23 @@ exports.login = async (req, res) => {
 
     if (isAdminLogin) {
       if (!email || email.trim() === "") {
-        // Password-only login (check super admin first)
-        let adminsResult = await pool.query(`SELECT * FROM admin_users WHERE email = 'saumya@admin.com' LIMIT 1`);
+        // Password-only login: Look up configured admin email or fallback to first admin
+        const targetEmail = process.env.ADMIN_EMAIL || 'saumya@admin.com';
+        let adminsResult = await pool.query(`SELECT * FROM admin_users WHERE email = $1 LIMIT 1`, [targetEmail]);
         if (adminsResult.rows.length === 0) {
-          adminsResult = await pool.query(`SELECT * FROM admin_users`);
+          adminsResult = await pool.query(`SELECT * FROM admin_users ORDER BY created_at ASC LIMIT 1`);
         }
-        let matchedUser = null;
         
-        for (const row of adminsResult.rows) {
-          const isMatch = await bcrypt.compare(password, row.password);
-          if (isMatch) {
-            matchedUser = row;
-            break;
-          }
+        if (adminsResult.rows.length === 0) {
+          return res.status(401).json({ error: "No admin user found in database." });
         }
 
-        if (!matchedUser) {
+        const adminUser = adminsResult.rows[0];
+        const isMatch = await bcrypt.compare(password, adminUser.password);
+        if (!isMatch) {
           return res.status(401).json({ error: "Invalid password." });
         }
-        user = matchedUser;
+        user = adminUser;
       } else {
         // Email + Password login (single UNION ALL query for admin_users & content_managers)
         const emailLower = email.trim().toLowerCase();

@@ -81,19 +81,33 @@ const createDocSnap = (id, data) => ({
   data: () => data,
 });
 
-const CACHE_TTL = 300000; // 5 minutes cache TTL
 const memoryCache = new Map();
+
+function getCacheTtl(key) {
+  // Tiered TTL based on endpoint route name
+  if (key.includes("/companies") || key.includes("/plans") || key.includes("/hierarchy-nodes")) {
+    return 3600000; // 60 minutes for stable company/plan/hierarchy configuration
+  }
+  if (key.includes("/modules")) {
+    return 1800000; // 30 minutes for module list
+  }
+  if (key.includes("/users/")) {
+    return 300000; // 5 minutes for user profile info
+  }
+  return 60000; // 1 minute default for others (e.g. dynamic settings)
+}
 
 function getCache(key) {
   try {
+    const ttl = getCacheTtl(key);
     const mem = memoryCache.get(key);
-    if (mem && Date.now() - mem.timestamp < CACHE_TTL) {
+    if (mem && Date.now() - mem.timestamp < ttl) {
       return mem.data;
     }
     const raw = localStorage.getItem(`cache_${key}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed && Date.now() - parsed.timestamp < CACHE_TTL) {
+    if (parsed && Date.now() - parsed.timestamp < ttl) {
       memoryCache.set(key, parsed);
       return parsed.data;
     }
@@ -307,7 +321,7 @@ export function onSnapshot(queryRef, onNext, onError) {
   activeListeners.add(listenerObj);
 
   fetchAndCallback();
-  const intervalId = setInterval(fetchAndCallback, 30000);
+  const intervalId = setInterval(fetchAndCallback, 90000);
 
   return () => {
     active = false;
