@@ -205,7 +205,7 @@ exports.saveModules = async (req, res) => {
           chunk.forEach((q, idx) => {
             const qId = (q.id && typeof q.id === "string" && q.id.length > 20) ? q.id : crypto.randomUUID();
             const correctIndex = q.correctAnswerIndex !== undefined ? q.correctAnswerIndex : (q.correct_answer_index !== undefined ? q.correct_answer_index : null);
-            const svgCode = q.svgCode || q.svg_code || null;
+            const svgCode = q.image || q.svgCode || q.svg_code || null;
             const dispOrder = q.displayOrder !== undefined ? q.displayOrder : (i + idx);
 
             valueClauses.push(`($${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++})`);
