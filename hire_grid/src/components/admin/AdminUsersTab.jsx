@@ -12,6 +12,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
   const [adminUsers, setAdminUsers] = useState([]);
   const [students, setStudents] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [nodes, setNodes] = useState([]);
 
   const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   const [newAdmin, setNewAdmin] = useState({
