@@ -1701,9 +1701,9 @@ export default function StudentDashboard() {
                                       {qIdx + 1}.{" "}
                                       <MathText content={q.question} />
                                     </div>
-                                    {q.image && (
+                                    {(q.image || q.svgCode || q.svg_code) && (
                                       <SvgDiagram
-                                        svgCode={q.image}
+                                        svgCode={q.image || q.svgCode || q.svg_code}
                                         className="max-h-48"
                                         containerClassName="mb-4"
                                       />
@@ -2089,12 +2089,15 @@ export default function StudentDashboard() {
                           </button>
                         </div>
 
-                        {activeModule.questions[currentQuestionIndex].image && (
+                        {(activeModule.questions[currentQuestionIndex].image ||
+                          activeModule.questions[currentQuestionIndex].svgCode ||
+                          activeModule.questions[currentQuestionIndex].svg_code) && (
                           <div className="mb-8">
                             <SvgDiagram
                               svgCode={
-                                activeModule.questions[currentQuestionIndex]
-                                  .image
+                                activeModule.questions[currentQuestionIndex].image ||
+                                activeModule.questions[currentQuestionIndex].svgCode ||
+                                activeModule.questions[currentQuestionIndex].svg_code
                               }
                               className="max-h-64 rounded-lg shadow-sm border border-emerald-500/20"
                               containerClassName=""

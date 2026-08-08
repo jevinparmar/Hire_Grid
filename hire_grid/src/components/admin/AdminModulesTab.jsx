@@ -2319,9 +2319,9 @@ Please generate the requested JSON now.`;
                         </div>
                       </div>
                     </div>
-                    {q.image && (
+                    {(q.image || q.svgCode || q.svg_code) && (
                       <SvgDiagram
-                        svgCode={q.image}
+                        svgCode={q.image || q.svgCode || q.svg_code}
                         className="max-h-48"
                         containerClassName="mb-4 ml-6"
                       />
@@ -2463,9 +2463,9 @@ Please generate the requested JSON now.`;
                     <MathText content={q.question} />
                   </div>
 
-                  {q.image && (
+                  {(q.image || q.svgCode || q.svg_code) && (
                     <SvgDiagram
-                      svgCode={q.image}
+                      svgCode={q.image || q.svgCode || q.svg_code}
                       className="max-h-48"
                       containerClassName="my-3"
                     />
