@@ -50,6 +50,7 @@ const createTablesQuery = `
     google_id VARCHAR(255),
     auth_provider VARCHAR(50) DEFAULT 'local',
     profile_picture TEXT,
+    module_scores JSONB DEFAULT '{}',
     purchased_companies JSONB DEFAULT '[]',
     granted_company_access JSONB DEFAULT '{}',
     granted_subject_access JSONB DEFAULT '{}',
@@ -426,7 +427,7 @@ async function initDb() {
       ALTER TABLE companies ADD COLUMN IF NOT EXISTS display_order INTEGER;
       ALTER TABLE companies ADD COLUMN IF NOT EXISTS created_at BIGINT;
 
-      -- Users additions for access permissions & device management
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS module_scores JSONB DEFAULT '{}';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS purchased_companies JSONB DEFAULT '[]';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_company_access JSONB DEFAULT '{}';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_subject_access JSONB DEFAULT '{}';
