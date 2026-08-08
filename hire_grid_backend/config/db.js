@@ -365,6 +365,7 @@ async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
       CREATE INDEX IF NOT EXISTS idx_plans_is_active ON plans(is_active);
 
+      ALTER TABLE questions ADD COLUMN IF NOT EXISTS positive_marks_override NUMERIC(10,2);
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS item_type VARCHAR(100) DEFAULT 'full_premium';
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS item_id VARCHAR(255);
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS duration INTEGER DEFAULT 12;

@@ -267,7 +267,7 @@ exports.submitScore = async (req, res) => {
 
     // 2. Fetch correct answers from DB
     const questionsRes = await pool.query(
-      "SELECT id, correct_answer_index, positive_marks_override FROM questions WHERE module_id = $1",
+      "SELECT id, correct_answer_index FROM questions WHERE module_id = $1",
       [moduleId]
     );
     const dbQuestions = questionsRes.rows;
@@ -278,13 +278,13 @@ exports.submitScore = async (req, res) => {
 
     if (!maxPossibleScore) {
       dbQuestions.forEach((q) => {
-        const qPos = q.positive_marks_override !== null ? Number(q.positive_marks_override) : modPositive;
+        const qPos = (q.positive_marks_override !== undefined && q.positive_marks_override !== null) ? Number(q.positive_marks_override) : modPositive;
         maxPossibleScore += qPos;
       });
     }
 
     dbQuestions.forEach((q) => {
-      const qPos = q.positive_marks_override !== null ? Number(q.positive_marks_override) : modPositive;
+      const qPos = (q.positive_marks_override !== undefined && q.positive_marks_override !== null) ? Number(q.positive_marks_override) : modPositive;
       const qNeg = modNegative; 
 
       const studentAnswer = answers[q.id];
