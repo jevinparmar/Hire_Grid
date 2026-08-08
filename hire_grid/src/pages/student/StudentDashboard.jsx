@@ -600,6 +600,16 @@ export default function StudentDashboard() {
 
   const handleFinishTest = async () => {
     if (!activeModule || !auth.currentUser) return;
+
+    const unansweredCount = activeModule.questions.filter(
+      (q) => answers[q.id] === undefined || answers[q.id] === null
+    ).length;
+
+    if (unansweredCount > 0) {
+      showToast(`Please answer all questions before submitting. (${unansweredCount} unanswered)`, "warning");
+      return;
+    }
+
     exitFullscreen();
     setShowWarningModal(false);
     setIsFinished(true);
@@ -2152,39 +2162,29 @@ export default function StudentDashboard() {
                               Clear
                             </button>
                           )}
-                          <button
-                            onClick={() => {
-                              handleClearSelection();
-                              handleNextQuestion();
-                            }}
-                            disabled={
-                              currentQuestionIndex ===
-                              activeModule.questions.length - 1
-                            }
-                            className="flex items-center px-6 py-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:hidden"
-                          >
-                            Skip
-                            <ChevronRight className="w-5 h-5 ml-1" />
-                          </button>
                         </div>
                         <div className="flex space-x-3 ml-auto">
-                          <button
-                            onClick={handleFinishTest}
-                            className="flex items-center px-6 py-3 btn-eng-primary font-bold rounded-xl shadow-md transition-colors"
-                          >
-                            Submit Test
-                          </button>
-                          <button
-                            onClick={handleNextQuestion}
-                            disabled={
-                              currentQuestionIndex ===
-                              activeModule.questions.length - 1
-                            }
-                            className="flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:hidden text-white font-bold rounded-xl shadow-md transition-colors"
-                          >
-                            Next
-                            <ChevronRight className="w-5 h-5 ml-1" />
-                          </button>
+                          {currentQuestionIndex < activeModule.questions.length - 1 ? (
+                            <button
+                              onClick={handleNextQuestion}
+                              className="flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors"
+                            >
+                              Next
+                              <ChevronRight className="w-5 h-5 ml-1" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={handleFinishTest}
+                              disabled={
+                                activeModule.questions.some(
+                                  (q) => answers[q.id] === undefined || answers[q.id] === null
+                                )
+                              }
+                              className="flex items-center px-6 py-3 btn-eng-primary font-bold rounded-xl shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Submit Test
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
