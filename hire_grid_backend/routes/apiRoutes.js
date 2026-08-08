@@ -32,6 +32,7 @@ router.get("/stats", dataController.getStats);
 // Scores
 router.get("/scores", dataController.getScores);
 router.post("/scores", dataController.submitScore);
+router.get("/first-attempts", dataController.getFirstAttempts);
 
 // Companies
 router.get("/companies", dataController.getCompanies);

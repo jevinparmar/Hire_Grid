@@ -3,7 +3,7 @@ import { OperationType, collection, db, deleteDoc, doc, getDoc, getDocs, handleF
 import { api } from "../../lib/api";
 import { showToast } from "../common/Toast";
 
-import { Trash2, UserPlus, ShieldCheck, Pencil } from "lucide-react";
+import { Trash2, UserPlus, ShieldCheck, Pencil, Download, FileSpreadsheet } from "lucide-react";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 
 import { logAudit } from "../../auditLogger";
@@ -56,6 +56,60 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
       }
     } catch (err) {
       console.error("Fetch students error:", err);
+    }
+  };
+
+  const handleExportFirstAttempts = async () => {
+    try {
+      const res = await api.get("/first-attempts");
+      if (!res.success || !res.attempts || res.attempts.length === 0) {
+        showToast("No first attempt exam records found to export.", "info");
+        return;
+      }
+
+      const headers = [
+        "Student Name",
+        "Student Email",
+        "Student Branch",
+        "Student Semester",
+        "Module Name",
+        "Module Type",
+        "Company Name",
+        "Learning Branch",
+        "Score (%)",
+        "Correct Answers",
+        "Total Questions",
+        "XP Earned",
+        "Submitted Date"
+      ];
+
+      const rows = res.attempts.map((a) => [
+        `"${(a.studentName || "").replace(/"/g, '""')}"`,
+        `"${(a.studentEmail || "").replace(/"/g, '""')}"`,
+        `"${(a.studentBranch || "").replace(/"/g, '""')}"`,
+        `"${(a.studentSemester || "").replace(/"/g, '""')}"`,
+        `"${(a.moduleTitle || "").replace(/"/g, '""')}"`,
+        `"${(a.moduleType || "").replace(/"/g, '""')}"`,
+        `"${(a.companyName || "").replace(/"/g, '""')}"`,
+        `"${(a.learningBranch || "").replace(/"/g, '""')}"`,
+        a.score,
+        a.correctCount,
+        a.totalQuestions,
+        a.xpEarned,
+        `"${new Date(a.submittedAt).toLocaleString()}"`
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `first_attempt_exam_report_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("First attempt exam report downloaded successfully!", "success");
+    } catch (err) {
+      showToast("Export error: " + (err.message || "Failed to export"), "error");
     }
   };
 
@@ -728,7 +782,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
 
       {/* Student Accounts */}
       <div className="glass-panel border-indigo-500/20 rounded-xl p-6 shadow-sm">
-        <div className="mb-6 flex justify-between items-center">
+        <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
               Student Accounts
@@ -737,6 +791,14 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
               Manage registered students and their data.
             </p>
           </div>
+          <button
+            onClick={handleExportFirstAttempts}
+            className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm"
+            title="Download Excel/CSV of all student 1st attempt exam scores"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Download 1st Attempt Report (Excel/CSV)</span>
+          </button>
         </div>
 
         <div className="overflow-hidden border border-slate-200 dark:border-slate-800 rounded-xl">

@@ -246,6 +246,27 @@ const createTablesQuery = `
     display_order INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+
+  -- 23. first_attempts
+  CREATE TABLE IF NOT EXISTS first_attempts (
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    user_name VARCHAR(255),
+    user_email VARCHAR(255),
+    student_branch VARCHAR(255),
+    student_semester VARCHAR(50),
+    module_id VARCHAR(255) NOT NULL,
+    module_title VARCHAR(255),
+    module_type VARCHAR(100),
+    company_name VARCHAR(255),
+    branch_name VARCHAR(255),
+    score INTEGER NOT NULL,
+    correct_count INTEGER NOT NULL,
+    total_questions INTEGER NOT NULL,
+    xp_earned INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_user_module_first_attempt UNIQUE (user_id, module_id)
+  );
 `;
 
 
@@ -294,6 +315,26 @@ async function initDb() {
       console.log("Running one-time schema alterations and index creations...");
       await pool.query(`
        DROP TABLE IF EXISTS scores, gate_scores, notifications, audit_logs CASCADE;
+
+       CREATE TABLE IF NOT EXISTS first_attempts (
+         id VARCHAR(255) PRIMARY KEY,
+         user_id VARCHAR(255) NOT NULL,
+         user_name VARCHAR(255),
+         user_email VARCHAR(255),
+         student_branch VARCHAR(255),
+         student_semester VARCHAR(50),
+         module_id VARCHAR(255) NOT NULL,
+         module_title VARCHAR(255),
+         module_type VARCHAR(100),
+         company_name VARCHAR(255),
+         branch_name VARCHAR(255),
+         score INTEGER NOT NULL,
+         correct_count INTEGER NOT NULL,
+         total_questions INTEGER NOT NULL,
+         xp_earned INTEGER DEFAULT 0,
+         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         CONSTRAINT unique_user_module_first_attempt UNIQUE (user_id, module_id)
+       );
 
        CREATE TABLE IF NOT EXISTS plan_mappings (
          id VARCHAR(255) PRIMARY KEY,

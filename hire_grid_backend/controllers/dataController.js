@@ -303,7 +303,7 @@ exports.submitScore = async (req, res) => {
     const xpEarned = correctCount * 10;
 
     // 3. Save score to users JSONB moduleScores column
-    const userRes = await pool.query("SELECT xp, module_scores FROM users WHERE id = $1", [userId]);
+    const userRes = await pool.query("SELECT name, email, branch, semester, xp, module_scores FROM users WHERE id = $1", [userId]);
     if (userRes.rows.length > 0) {
       const dbUser = userRes.rows[0];
       const currentXP = Number(dbUser.xp) || 0;
@@ -327,6 +327,53 @@ exports.submitScore = async (req, res) => {
           [JSON.stringify(moduleScores), newXP, newLevel, userId]
         );
       }
+
+      // 4. Save First Attempt ONLY if user has not attempted this module before
+      try {
+        let companyName = null;
+        let branchName = null;
+
+        if (activeModule.module_type === "company" && activeModule.branch_id) {
+          const compRes = await pool.query("SELECT name FROM companies WHERE id = $1", [activeModule.branch_id]);
+          if (compRes.rows.length > 0) {
+            companyName = compRes.rows[0].name;
+          }
+        } else if (activeModule.parent_id) {
+          const branchRes = await pool.query("SELECT name FROM hierarchy_nodes WHERE id = $1", [activeModule.parent_id]);
+          if (branchRes.rows.length > 0) {
+            branchName = branchRes.rows[0].name;
+          }
+        }
+
+        const attemptId = crypto.randomUUID();
+        await pool.query(
+          `INSERT INTO first_attempts (
+            id, user_id, user_name, user_email, student_branch, student_semester,
+            module_id, module_title, module_type, company_name, branch_name,
+            score, correct_count, total_questions, xp_earned
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          ON CONFLICT (user_id, module_id) DO NOTHING`,
+          [
+            attemptId,
+            userId,
+            dbUser.name || "Student",
+            dbUser.email || "",
+            dbUser.branch || "",
+            dbUser.semester || "",
+            moduleId,
+            activeModule.title || "Module",
+            activeModule.module_type || "general",
+            companyName,
+            branchName,
+            scorePercentage,
+            correctCount,
+            dbQuestions.length,
+            xpEarned
+          ]
+        );
+      } catch (attemptErr) {
+        console.error("First attempt recording warning:", attemptErr.message);
+      }
     }
 
     res.json({
@@ -336,6 +383,34 @@ exports.submitScore = async (req, res) => {
       totalQuestions: dbQuestions.length,
       xpEarned
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ================= FIRST ATTEMPTS (ADMIN EXPORTS) =================
+exports.getFirstAttempts = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        id,
+        user_name AS "studentName",
+        user_email AS "studentEmail",
+        student_branch AS "studentBranch",
+        student_semester AS "studentSemester",
+        module_title AS "moduleTitle",
+        module_type AS "moduleType",
+        COALESCE(company_name, '') AS "companyName",
+        COALESCE(branch_name, '') AS "learningBranch",
+        score,
+        correct_count AS "correctCount",
+        total_questions AS "totalQuestions",
+        xp_earned AS "xpEarned",
+        created_at AS "submittedAt"
+      FROM first_attempts
+      ORDER BY created_at DESC
+    `);
+    res.json({ success: true, attempts: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
