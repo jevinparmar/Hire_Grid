@@ -601,15 +601,6 @@ export default function StudentDashboard() {
   const handleFinishTest = async () => {
     if (!activeModule || !auth.currentUser) return;
 
-    const unansweredCount = activeModule.questions.filter(
-      (q) => answers[q.id] === undefined || answers[q.id] === null
-    ).length;
-
-    if (unansweredCount > 0) {
-      showToast(`Please answer all questions before submitting. (${unansweredCount} unanswered)`, "warning");
-      return;
-    }
-
     exitFullscreen();
     setShowWarningModal(false);
     setIsFinished(true);
@@ -1715,33 +1706,47 @@ export default function StudentDashboard() {
                                         const isTrueCorrect =
                                           q.correctAnswerIndex === optIdx;
                                         let ring =
-                                          "border-emerald-500/20 glass-panel text-emerald-400/80";
+                                          "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400";
                                         if (isTrueCorrect)
                                           ring =
-                                            "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 font-bold";
+                                            "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200 font-bold shadow-sm";
                                         else if (isUserPick)
                                           ring =
-                                            "border-rose-500 bg-rose-50 dark:bg-rose-900/20 text-rose-800 dark:text-rose-300";
+                                            "border-rose-500 bg-rose-50 dark:bg-rose-900/30 text-rose-900 dark:text-rose-200 font-bold shadow-sm";
 
                                         return (
                                           <div
                                             key={optIdx}
-                                            className={`px-4 py-3 rounded-lg border flex items-start ${ring}`}
+                                            className={`px-4 py-3 rounded-xl border flex items-center justify-between transition-colors ${ring}`}
                                           >
-                                            <span className="mr-2 opacity-70 mt-1">
-                                              {String.fromCharCode(65 + optIdx)}
-                                              .
-                                            </span>
-                                            <div className="flex-1">
-                                              {opt.startsWith("data:image/") ||
-                                              opt.trim().startsWith("<svg") ? (
-                                                <SvgDiagram
-                                                  svgCode={opt}
-                                                  className="max-h-24 w-auto object-contain"
-                                                  containerClassName=""
-                                                />
-                                              ) : (
-                                                <MathText content={opt} />
+                                            <div className="flex items-start flex-1 mr-3">
+                                              <span className="mr-3 font-mono font-bold opacity-80 mt-0.5">
+                                                {String.fromCharCode(65 + optIdx)}.
+                                              </span>
+                                              <div className="flex-1">
+                                                {opt.startsWith("data:image/") ||
+                                                opt.trim().startsWith("<svg") ? (
+                                                  <SvgDiagram
+                                                    svgCode={opt}
+                                                    className="max-h-24 w-auto object-contain"
+                                                    containerClassName=""
+                                                  />
+                                                ) : (
+                                                  <MathText content={opt} />
+                                                )}
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                              {isUserPick && !isTrueCorrect && (
+                                                <span className="px-2.5 py-1 rounded-md bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100 text-xs font-black uppercase tracking-wider">
+                                                  Your Choice (Wrong)
+                                                </span>
+                                              )}
+                                              {isTrueCorrect && (
+                                                <span className="px-2.5 py-1 rounded-md bg-emerald-600 text-white text-xs font-black uppercase tracking-wider flex items-center shadow-sm">
+                                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                                                  Correct Answer
+                                                </span>
                                               )}
                                             </div>
                                           </div>
@@ -2165,27 +2170,35 @@ export default function StudentDashboard() {
                               Clear
                             </button>
                           )}
+                          <button
+                            onClick={() => {
+                              handleClearSelection();
+                              handleNextQuestion();
+                            }}
+                            disabled={
+                              currentQuestionIndex ===
+                              activeModule.questions.length - 1
+                            }
+                            className="flex items-center px-6 py-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:hidden"
+                          >
+                            Skip
+                            <ChevronRight className="w-5 h-5 ml-1" />
+                          </button>
                         </div>
                         <div className="flex space-x-3 ml-auto">
-                          {currentQuestionIndex < activeModule.questions.length - 1 ? (
+                          <button
+                            onClick={handleFinishTest}
+                            className="flex items-center px-6 py-3 btn-eng-primary font-bold rounded-xl shadow-md transition-colors"
+                          >
+                            Submit Test
+                          </button>
+                          {currentQuestionIndex < activeModule.questions.length - 1 && (
                             <button
                               onClick={handleNextQuestion}
                               className="flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors"
                             >
                               Next
                               <ChevronRight className="w-5 h-5 ml-1" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={handleFinishTest}
-                              disabled={
-                                activeModule.questions.some(
-                                  (q) => answers[q.id] === undefined || answers[q.id] === null
-                                )
-                              }
-                              className="flex items-center px-6 py-3 btn-eng-primary font-bold rounded-xl shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              Submit Test
                             </button>
                           )}
                         </div>

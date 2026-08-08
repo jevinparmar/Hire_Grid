@@ -1307,7 +1307,7 @@ exports.getModuleQuestions = async (req, res) => {
       }
     }
     const result = await pool.query(
-      `SELECT id, question, options, svg_code AS "svgCode", display_order AS "displayOrder"
+      `SELECT id, question, options, correct_answer_index AS "correctAnswerIndex", svg_code AS "svgCode", display_order AS "displayOrder"
        FROM questions
        WHERE module_id = $1
        ORDER BY display_order ASC`,
