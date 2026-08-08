@@ -5,8 +5,8 @@ const crypto = require("crypto");
 const otpService = require("../utils/otpService");
 const emailService = require("../utils/emailService");
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRE = process.env.JWT_EXPIRE || "7d";
+const getJwtSecret = () => process.env.JWT_SECRET;
+const getJwtExpire = () => process.env.JWT_EXPIRE || "7d";
 
 const formatUserResponse = (user) => {
   if (!user) return null;
@@ -132,9 +132,15 @@ exports.signup = async (req, res) => {
 
     const user = userResult.rows[0];
 
+    const jwtSecret = getJwtSecret();
+    if (!jwtSecret) {
+      console.error("FATAL ERROR: JWT_SECRET environment variable is not configured.");
+      return res.status(500).json({ error: "Server authentication error." });
+    }
+
     // Students / Admins / Content managers bypass OTP
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, {
-      expiresIn: JWT_EXPIRE,
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, jwtSecret, {
+      expiresIn: getJwtExpire(),
     });
 
     res.status(201).json({
@@ -295,9 +301,15 @@ exports.login = async (req, res) => {
       }
     }
 
+    const jwtSecret = getJwtSecret();
+    if (!jwtSecret) {
+      console.error("FATAL ERROR: JWT_SECRET environment variable is not configured.");
+      return res.status(500).json({ error: "Server authentication error." });
+    }
+
     // Generate JWT Token
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, {
-      expiresIn: JWT_EXPIRE,
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, jwtSecret, {
+      expiresIn: getJwtExpire(),
     });
 
     res.json({
@@ -416,11 +428,17 @@ exports.googleLogin = async (req, res) => {
       });
     }
 
+    const jwtSecret = getJwtSecret();
+    if (!jwtSecret) {
+      console.error("FATAL ERROR: JWT_SECRET environment variable is not configured.");
+      return res.status(500).json({ error: "Server authentication error." });
+    }
+
     // Generate JWT Token
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRE }
+      jwtSecret,
+      { expiresIn: getJwtExpire() }
     );
 
     res.json({
