@@ -29,10 +29,12 @@ router.get("/modules/:id/questions", dataController.getModuleQuestions);
 // Stats
 router.get("/stats", dataController.getStats);
 
+// First Attempts Report
+router.get("/first-attempts", dataController.getFirstAttempts);
+
 // Scores
 router.get("/scores", dataController.getScores);
 router.post("/scores", dataController.submitScore);
-router.get("/first-attempts", dataController.getFirstAttempts);
 
 // Companies
 router.get("/companies", dataController.getCompanies);
