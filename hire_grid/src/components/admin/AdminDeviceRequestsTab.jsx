@@ -47,7 +47,7 @@ export function AdminDeviceRequestsTab() {
         {requests.map((req) => (
           <div
             key={req.id}
-            className="bg-white dark:bg-slate-900 p-4 rounded-xl border flex justify-between items-center border-slate-200 dark:border-slate-800"
+            className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between sm:items-center"
           >
             <div>
               <p className="font-bold text-lg dark:text-white">

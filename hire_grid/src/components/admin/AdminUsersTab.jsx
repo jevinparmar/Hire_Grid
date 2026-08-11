@@ -644,7 +644,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
           </form>
         )}
 
-        <div className="overflow-hidden border border-slate-200 dark:border-slate-800 rounded-xl">
+        <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
             <thead className="bg-slate-50 dark:bg-slate-900/50">
               <tr>
@@ -803,7 +803,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
           </button>
         </div>
 
-        <div className="overflow-hidden border border-slate-200 dark:border-slate-800 rounded-xl">
+        <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
             <thead className="bg-slate-50 dark:bg-slate-900/50">
               <tr>
@@ -1021,7 +1021,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
           <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">
             Granted Accesess
           </h3>
-          <div className="overflow-hidden border border-slate-200 dark:border-slate-800 rounded-xl">
+          <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
               <thead className="bg-slate-50 dark:bg-slate-900/50">
                 <tr>

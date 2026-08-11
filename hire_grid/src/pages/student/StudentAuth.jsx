@@ -466,7 +466,7 @@ export default function StudentAuth() {
                         ref={(el) => (otpInputsRef.current[idx] = el)}
                         onChange={(e) => handleOtpChange(idx, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        className="w-12 h-14 text-center text-xl font-bold font-mono bg-slate-50 dark:bg-slate-900/60 border-2 border-slate-200 dark:border-slate-800 focus:border-emerald-500 dark:focus:border-emerald-400 rounded-xl outline-none transition-colors dark:text-white"
+                        className="w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold font-mono bg-slate-50 dark:bg-slate-900/60 border-2 border-slate-200 dark:border-slate-800 focus:border-emerald-500 dark:focus:border-emerald-400 rounded-xl outline-none transition-colors dark:text-white"
                       />
                     ))}
                   </div>

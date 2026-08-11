@@ -156,7 +156,7 @@ export function AdminPaymentRequestsTab({ userName = "Admin" }) {
         </div>
       </div>
 
-      <div className="overflow-hidden border border-slate-200 dark:border-slate-800 rounded-xl glass-panel shadow-sm">
+      <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl glass-panel shadow-sm">
         <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
           <thead className="bg-slate-50 dark:bg-slate-900/50">
             <tr>
