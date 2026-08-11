@@ -1717,13 +1717,13 @@ export default function StudentDashboard() {
                                         return (
                                           <div
                                             key={optIdx}
-                                            className={`px-4 py-3 rounded-xl border flex items-center justify-between transition-colors ${ring}`}
+                                            className={`px-4 py-3 rounded-xl border flex flex-col sm:flex-row gap-2 sm:gap-4 justify-between transition-colors ${ring}`}
                                           >
-                                            <div className="flex items-start flex-1 mr-3">
+                                            <div className="flex items-start flex-1 mr-3 w-full sm:w-auto">
                                               <span className="mr-3 font-mono font-bold opacity-80 mt-0.5">
                                                 {String.fromCharCode(65 + optIdx)}.
                                               </span>
-                                              <div className="flex-1">
+                                              <div className="flex-grow">
                                                 {opt.startsWith("data:image/") ||
                                                 opt.trim().startsWith("<svg") ? (
                                                   <SvgDiagram
@@ -1736,7 +1736,7 @@ export default function StudentDashboard() {
                                                 )}
                                               </div>
                                             </div>
-                                            <div className="flex items-center gap-2 shrink-0">
+                                            <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto pl-7 sm:pl-0">
                                               {isUserPick && !isTrueCorrect && (
                                                 <span className="px-2.5 py-1 rounded-md bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100 text-xs font-black uppercase tracking-wider">
                                                   Your Choice (Wrong)

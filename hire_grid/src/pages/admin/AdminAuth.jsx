@@ -51,7 +51,7 @@ export default function AdminAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans transition-colors duration-500 overflow-hidden relative">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans transition-colors duration-500 overflow-y-auto relative">
       <div className="absolute inset-0 z-0 pointer-events-none bg-circuit-pattern opacity-10 animate-circuit" />
       <div className="absolute inset-0 bg-white/80 dark:bg-slate-950/80 pointer-events-none z-0" />
 

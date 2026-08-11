@@ -227,7 +227,7 @@ export default function StudentAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 bg-circuit-pattern animate-circuit flex flex-col font-sans overflow-hidden transition-colors text-slate-700 dark:text-slate-300 relative">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 bg-circuit-pattern animate-circuit flex flex-col font-sans overflow-y-auto transition-colors text-slate-700 dark:text-slate-300 relative">
       <div className="absolute inset-0 bg-white/80 dark:bg-slate-950/80 pointer-events-none z-0" />
 
       {/* Header Navigation */}
@@ -257,7 +257,7 @@ export default function StudentAuth() {
       <main className="flex-1 flex flex-col lg:flex-row p-4 md:p-8 gap-8 overflow-y-auto relative z-10 items-center">
         {/* Left Column: Welcome */}
         <div className="w-full lg:w-1/2 flex flex-col justify-center space-y-6 shrink-0 order-2 lg:order-1 pt-8 lg:pt-0 pl-0 lg:pl-12">
-          <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-slate-100 leading-tight uppercase tracking-widest drop-shadow-lg">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-slate-900 dark:text-slate-100 leading-tight uppercase tracking-widest drop-shadow-lg">
             Engineering
             <br />
             <span className="eng-gradient-text drop-shadow-[0_0_20px_rgba(4,120,87,0.8)]">

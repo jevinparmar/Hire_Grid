@@ -534,7 +534,7 @@ export function AdminUsersTab({ isSuperAdmin, adminName }) {
     <div className="space-y-8">
       {/* Create Admin / Content Manager Accounts */}
       <div className="glass-panel border-emerald-500/20 rounded-xl p-6 shadow-sm">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between sm:items-center mb-6">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
               Staff Accounts

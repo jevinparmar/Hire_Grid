@@ -134,7 +134,7 @@ export function AdminPaymentRequestsTab({ userName = "Admin" }) {
         </div>
       </div>
 
-      <div className="flex justify-between items-end mb-6">
+      <div className="flex flex-col md:flex-row gap-4 justify-between md:items-end mb-6">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
             Payment Requests
@@ -143,7 +143,7 @@ export function AdminPaymentRequestsTab({ userName = "Admin" }) {
             Review student purchase requests and grant premium access.
           </p>
         </div>
-        <div className="flex space-x-2 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg">
+        <div className="flex space-x-2 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg overflow-x-auto max-w-full whitespace-nowrap scrollbar-none shrink-0 self-start md:self-auto">
           {["all", "pending", "approved", "rejected"].map((s) => (
             <button
               key={s}
