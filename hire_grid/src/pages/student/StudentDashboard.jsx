@@ -450,7 +450,7 @@ export default function StudentDashboard() {
     )
       return;
     if (timeLeft <= 0) {
-      handleFinishTest();
+      handleFinishTest(true);
       return;
     }
     const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
@@ -475,7 +475,7 @@ export default function StudentDashboard() {
             "ANTI-CHEATING SYSTEM VIOLATION: Maximum allowed security warnings exceeded (3/3). Your exam is being automatically submitted immediately.",
             "warning", 6000
           );
-          handleFinishTest();
+          handleFinishTest(true);
         } else {
           setShowWarningModal(true);
         }
@@ -598,8 +598,13 @@ export default function StudentDashboard() {
     setAnswers((prev) => ({ ...prev, [currentQ.id]: index }));
   };
 
-  const handleFinishTest = async () => {
+  const handleFinishTest = async (bypassConfirm = false) => {
     if (!activeModule || !auth.currentUser) return;
+
+    if (!bypassConfirm) {
+      const confirmSubmit = window.confirm("Are you sure you want to finish and submit your test?");
+      if (!confirmSubmit) return;
+    }
 
     exitFullscreen();
     setShowWarningModal(false);
