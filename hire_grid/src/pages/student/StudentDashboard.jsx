@@ -1984,7 +1984,13 @@ export default function StudentDashboard() {
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <button
+                            onClick={handleFinishTest}
+                            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center hover:-translate-y-0.5"
+                          >
+                            Submit Test
+                          </button>
                           <div className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm ${warningCount > 0 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border border-amber-300" : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300"}`}>
                             <ShieldAlert className="w-4 h-4 mr-1.5" />
                             <span>Anti-Cheat Guard</span>
@@ -2186,12 +2192,6 @@ export default function StudentDashboard() {
                           </button>
                         </div>
                         <div className="flex space-x-3 ml-auto">
-                          <button
-                            onClick={handleFinishTest}
-                            className="flex items-center px-6 py-3 btn-eng-primary font-bold rounded-xl shadow-md transition-colors"
-                          >
-                            Submit Test
-                          </button>
                           {currentQuestionIndex < activeModule.questions.length - 1 && (
                             <button
                               onClick={handleNextQuestion}
