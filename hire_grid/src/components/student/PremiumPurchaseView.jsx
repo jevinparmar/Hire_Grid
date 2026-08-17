@@ -9,6 +9,8 @@ import {
   MessageCircle,
   Building2,
   Smartphone,
+  Copy,
+  Check,
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -28,7 +30,30 @@ export function PremiumPurchaseView({
     bankDetails: "",
     instructions:
       "Step 1: Send payment using the provided payment details.\nStep 2: Submit transaction details.\nStep 3: Wait for admin approval.",
+    paymentNumber: "",
+    qrCode: "",
   });
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (!settings?.paymentNumber) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(settings.paymentNumber);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = settings.paymentNumber;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy", err);
+    }
+  };
   const [loading, setLoading] = useState(true);
 
   const [transactionId, setTransactionId] = useState("");
@@ -48,7 +73,7 @@ export function PremiumPurchaseView({
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        let customUpi = "";
+        let customQr = "";
         let customPhone = "";
         if (itemType === "plan") {
           try {
@@ -56,8 +81,8 @@ export function PremiumPurchaseView({
             const planSnap = await getDoc(planRef);
             if (planSnap.exists()) {
               const planData = planSnap.data();
-              if (planData.upiId) customUpi = planData.upiId;
-              if (planData.contactNumber) customPhone = planData.contactNumber;
+              if (planData.qrCode || planData.qr_code) customQr = planData.qrCode || planData.qr_code;
+              if (planData.paymentNumber || planData.payment_number) customPhone = planData.paymentNumber || planData.payment_number;
             }
           } catch (e) {
             console.error("Failed to load plan details for custom payment settings:", e);
@@ -71,14 +96,14 @@ export function PremiumPurchaseView({
           setSettings((prev) => ({
             ...prev,
             ...data,
-            ...(customUpi ? { upiId: customUpi } : {}),
-            ...(customPhone ? { contactNumber: customPhone } : {}),
+            ...(customQr ? { qrCode: customQr } : {}),
+            ...(customPhone ? { paymentNumber: customPhone } : {}),
           }));
         } else {
           setSettings((prev) => ({
             ...prev,
-            ...(customUpi ? { upiId: customUpi } : {}),
-            ...(customPhone ? { contactNumber: customPhone } : {}),
+            ...(customQr ? { qrCode: customQr } : {}),
+            ...(customPhone ? { paymentNumber: customPhone } : {}),
           }));
         }
       } catch (err) {
@@ -212,7 +237,7 @@ export function PremiumPurchaseView({
               </p>
             </div>
 
-            {settings.instructions || settings.upiId || settings.contactNumber || settings.whatsappNumber || settings.bankDetails ? (
+            {settings.instructions || settings.qrCode || settings.paymentNumber || settings.bankDetails ? (
               <div className="space-y-6">
                 {settings.instructions && (
                   <div className="whitespace-pre-wrap text-slate-600 dark:text-slate-300 text-sm leading-relaxed bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
@@ -220,65 +245,62 @@ export function PremiumPurchaseView({
                   </div>
                 )}
 
-                <div className="space-y-4">
-                  {settings.upiId && (
-                    <div className="flex items-start">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center shrink-0 mr-4">
-                        <IndianRupee className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">
-                          UPI ID
-                        </p>
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                          {settings.upiId}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {settings.contactNumber && (
-                    <div className="flex items-start">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center shrink-0 mr-4">
-                        <Smartphone className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">
-                          Contact Number
-                        </p>
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                          {settings.contactNumber}
-                        </p>
+                <div className="space-y-6 flex flex-col items-center">
+                  {settings.qrCode && (
+                    <div className="flex flex-col items-center bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm max-w-[240px] w-full">
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">
+                        Scan QR to Pay
+                      </p>
+                      <div className="aspect-square w-full rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-2">
+                        <img
+                          src={settings.qrCode}
+                          alt="Payment QR Code"
+                          className="max-w-full max-h-full object-contain rounded-lg hover:scale-105 transition-transform duration-200"
+                        />
                       </div>
                     </div>
                   )}
 
-                  {settings.whatsappNumber && (
-                    <div className="flex items-start">
-                      <div className="w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center shrink-0 mr-4">
-                        <MessageCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  {settings.paymentNumber && (
+                    <div className="flex items-center justify-between w-full max-w-[320px] bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-850 px-4 py-3 rounded-2xl">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0 mr-3">
+                          <Smartphone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[10px] text-slate-450 uppercase tracking-wider font-semibold">
+                            Payment Mobile Number
+                          </p>
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100 select-all">
+                            {settings.paymentNumber}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">
-                          WhatsApp
-                        </p>
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                          {settings.whatsappNumber}
-                        </p>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopy}
+                        className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-400 dark:text-slate-350 transition-colors"
+                        title="Copy payment number"
+                      >
+                        {copied ? (
+                          <Check className="w-4 h-4 text-emerald-500 animate-in fade-in" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
                   )}
 
                   {settings.bankDetails && (
-                    <div className="flex items-start">
-                      <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0 mr-4">
+                    <div className="flex items-start w-full bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-850 px-4 py-3 rounded-2xl">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center shrink-0 mr-3">
                         <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                       </div>
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">
+                      <div className="text-left flex-1">
+                        <p className="text-[10px] text-slate-450 uppercase tracking-wider font-semibold">
                           Bank Details
                         </p>
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100 whitespace-pre-wrap">
+                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-300 whitespace-pre-wrap mt-0.5">
                           {settings.bankDetails}
                         </p>
                       </div>
@@ -288,8 +310,7 @@ export function PremiumPurchaseView({
               </div>
             ) : (
               <p className="text-sm text-slate-500">
-                Payment details not configured. Please contact the
-                administrator.
+                Payment details not configured. Please contact the administrator.
               </p>
             )}
           </div>

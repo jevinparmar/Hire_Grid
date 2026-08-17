@@ -602,7 +602,9 @@ exports.getSettings = async (req, res) => {
               whatsapp_number AS "whatsappNumber", 
               upi_id AS "upiId", 
               bank_details AS "bankDetails", 
-              instructions 
+              instructions,
+              qr_code AS "qrCode",
+              payment_number AS "paymentNumber"
        FROM settings 
        WHERE id = $1`,
       [id]
@@ -618,15 +620,25 @@ exports.getSettings = async (req, res) => {
 
 exports.saveSettings = async (req, res) => {
   const { id } = req.params;
-  const { contactNumber, whatsappNumber, upiId, bankDetails, instructions } = req.body;
+  const { contactNumber, whatsappNumber, upiId, bankDetails, instructions, qrCode, paymentNumber } = req.body;
   try {
     await pool.query(
-      `INSERT INTO settings (id, contact_number, whatsapp_number, upi_id, bank_details, instructions)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO settings (id, contact_number, whatsapp_number, upi_id, bank_details, instructions, qr_code, payment_number)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (id) DO UPDATE
        SET contact_number = EXCLUDED.contact_number, whatsapp_number = EXCLUDED.whatsapp_number,
-           upi_id = EXCLUDED.upi_id, bank_details = EXCLUDED.bank_details, instructions = EXCLUDED.instructions`,
-      [id, contactNumber || null, whatsappNumber || null, upiId || null, bankDetails || null, instructions || null]
+           upi_id = EXCLUDED.upi_id, bank_details = EXCLUDED.bank_details, instructions = EXCLUDED.instructions,
+           qr_code = EXCLUDED.qr_code, payment_number = EXCLUDED.payment_number`,
+      [
+        id, 
+        contactNumber || null, 
+        whatsappNumber || null, 
+        upiId || null, 
+        bankDetails || null, 
+        instructions || null,
+        qrCode || null,
+        paymentNumber || null
+      ]
     );
     res.json({ success: true });
   } catch (err) {
@@ -1347,6 +1359,8 @@ exports.getPlans = async (req, res) => {
         free_demo_modules AS "freeDemoModules", 
         upi_id AS "upiId",
         contact_number AS "contactNumber",
+        qr_code AS "qrCode",
+        payment_number AS "paymentNumber",
         created_at AS "createdAt"
       FROM plans
     `;
@@ -1399,6 +1413,8 @@ exports.getPlanById = async (req, res) => {
         free_demo_modules AS "freeDemoModules", 
         upi_id AS "upiId",
         contact_number AS "contactNumber",
+        qr_code AS "qrCode",
+        payment_number AS "paymentNumber",
         created_at AS "createdAt"
        FROM plans WHERE id = $1`,
       [id]
@@ -1436,8 +1452,10 @@ exports.savePlan = async (req, res) => {
     companyModules,
     freeDemoModules,
     companyBranches, // Array of { companyId, branchId }
-    upiId,
+     upiId,
     contactNumber,
+    qrCode,
+    paymentNumber,
   } = req.body;
   const planId = id || crypto.randomUUID();
   try {
@@ -1445,9 +1463,9 @@ exports.savePlan = async (req, res) => {
 
     await pool.query(
       `INSERT INTO plans (
-        id, name, price, duration, duration_days, is_active, is_freemium, learning_content, company_modules, free_demo_modules, upi_id, contact_number
+        id, name, price, duration, duration_days, is_active, is_freemium, learning_content, company_modules, free_demo_modules, upi_id, contact_number, qr_code, payment_number
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        ON CONFLICT (id) DO UPDATE
        SET name = EXCLUDED.name,
            price = EXCLUDED.price,
@@ -1459,7 +1477,9 @@ exports.savePlan = async (req, res) => {
            company_modules = EXCLUDED.company_modules,
            free_demo_modules = EXCLUDED.free_demo_modules,
            upi_id = EXCLUDED.upi_id,
-           contact_number = EXCLUDED.contact_number`,
+           contact_number = EXCLUDED.contact_number,
+           qr_code = EXCLUDED.qr_code,
+           payment_number = EXCLUDED.payment_number`,
       [
         planId,
         name,
@@ -1473,6 +1493,8 @@ exports.savePlan = async (req, res) => {
         JSON.stringify(freeDemoModules || []),
         upiId || null,
         contactNumber || null,
+        qrCode || null,
+        paymentNumber || null,
       ]
     );
 

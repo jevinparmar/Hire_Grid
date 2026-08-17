@@ -43,8 +43,22 @@ export function AdminPlansTab({ userName }) {
   const [durationDays, setDurationDays] = useState(30);
   const [isActive, setIsActive] = useState(true);
   const [isFreemium, setIsFreemium] = useState(false);
-  const [upiId, setUpiId] = useState("");
-  const [contactNumber, setContactNumber] = useState("");
+  const [paymentNumber, setPaymentNumber] = useState("");
+  const [qrCode, setQrCode] = useState("");
+
+  const handleQrUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image is too large. Please select an image smaller than 2MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setQrCode(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
   
   // Selection State
   const [learningContent, setLearningContent] = useState([]); // Selected Branch/Subject/Topic/Module IDs
@@ -223,8 +237,8 @@ export function AdminPlansTab({ userName }) {
         companyModules,
         freeDemoModules,
         companyBranches,
-        upiId,
-        contactNumber,
+        paymentNumber,
+        qrCode,
       };
 
       await api.post("/plans", payload).catch(() => {});
@@ -248,8 +262,8 @@ export function AdminPlansTab({ userName }) {
       setCompanyModules([]);
       setFreeDemoModules([]);
       setCompanyBranches([]);
-      setUpiId("");
-      setContactNumber("");
+      setPaymentNumber("");
+      setQrCode("");
       showToast("Plan saved successfully!", "success");
     } catch (err) {
       showToast("Error saving plan: " + err.message, "error");
@@ -268,8 +282,8 @@ export function AdminPlansTab({ userName }) {
     setCompanyModules(plan.companyModules || plan.company_modules || []);
     setFreeDemoModules(plan.freeDemoModules || plan.free_demo_modules || []);
     setCompanyBranches(plan.companyBranches || plan.company_branches || []);
-    setUpiId(plan.upiId || plan.upi_id || "");
-    setContactNumber(plan.contactNumber || plan.contact_number || "");
+    setPaymentNumber(plan.paymentNumber || plan.payment_number || "");
+    setQrCode(plan.qrCode || plan.qr_code || "");
     setIsFormOpen(true);
   };
 
@@ -384,8 +398,8 @@ export function AdminPlansTab({ userName }) {
               setCompanyModules([]);
               setFreeDemoModules([]);
               setCompanyBranches([]);
-              setUpiId("");
-              setContactNumber("");
+              setPaymentNumber("");
+              setQrCode("");
               setIsFormOpen(true);
             }}
             className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold text-sm px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-500/10 transition-all duration-200"
@@ -493,25 +507,43 @@ export function AdminPlansTab({ userName }) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-300">Custom Payment UPI ID (Optional)</label>
-              <input
-                type="text"
-                value={upiId}
-                onChange={(e) => setUpiId(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-[#070D19] text-slate-100 focus:border-emerald-500 focus:outline-none"
-                placeholder="e.g. upi@id"
-              />
-            </div>
-
-            <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-300">Custom Payment Number (Optional)</label>
               <input
                 type="text"
-                value={contactNumber}
-                onChange={(e) => setContactNumber(e.target.value)}
+                value={paymentNumber}
+                onChange={(e) => setPaymentNumber(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-[#070D19] text-slate-100 focus:border-emerald-500 focus:outline-none"
-                placeholder="e.g. 9876543210"
+                placeholder="e.g. 9664532860"
               />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-semibold text-slate-300">Custom Payment QR Code (Optional)</label>
+              <div className="flex items-center space-x-4 bg-[#070D19] border border-slate-800 p-3 rounded-xl">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleQrUpload}
+                  className="block w-full text-xs text-slate-400
+                    file:mr-3 file:py-1.5 file:px-3
+                    file:rounded-full file:border-0
+                    file:text-xs file:font-semibold
+                    file:bg-emerald-950 file:text-emerald-450
+                    hover:file:bg-emerald-900"
+                />
+                {qrCode && (
+                  <div className="relative w-12 h-12 rounded border border-slate-800 overflow-hidden shrink-0 bg-white flex items-center justify-center">
+                    <img src={qrCode} alt="QR Preview" className="max-w-full max-h-full object-contain" />
+                    <button
+                      type="button"
+                      onClick={() => setQrCode("")}
+                      className="absolute top-0 right-0 bg-rose-500 hover:bg-rose-600 text-white p-0.5 w-4 h-4 flex items-center justify-center rounded-full text-[10px] font-black leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

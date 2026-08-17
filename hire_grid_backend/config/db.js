@@ -313,6 +313,12 @@ async function initDb() {
         
         ALTER TABLE plans ADD COLUMN IF NOT EXISTS upi_id VARCHAR(255);
         ALTER TABLE plans ADD COLUMN IF NOT EXISTS contact_number VARCHAR(255);
+        
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS qr_code TEXT;
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS payment_number VARCHAR(255);
+        
+        ALTER TABLE plans ADD COLUMN IF NOT EXISTS qr_code TEXT;
+        ALTER TABLE plans ADD COLUMN IF NOT EXISTS payment_number VARCHAR(255);
       `);
     } catch (migErr) {
       console.error("Critical bootstrap schema migration failed:", migErr.message);

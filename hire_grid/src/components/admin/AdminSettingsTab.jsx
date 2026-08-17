@@ -11,6 +11,8 @@ export function AdminSettingsTab() {
     bankDetails: "",
     instructions:
       "Step 1: Send payment using the provided payment details.\nStep 2: Submit transaction details.\nStep 3: Wait for admin approval.",
+    paymentNumber: "",
+    qrCode: "",
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -21,7 +23,7 @@ export function AdminSettingsTab() {
         const docRef = doc(db, "settings", "payment");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setSettings(docSnap.data());
+          setSettings((prev) => ({ ...prev, ...docSnap.data() }));
         }
       } catch (err) {
         handleFirestoreError(err, OperationType.GET, "settings");
@@ -29,6 +31,20 @@ export function AdminSettingsTab() {
     };
     fetchSettings();
   }, []);
+
+  const handleQrUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image is too large. Please select an image smaller than 2MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSettings((prev) => ({ ...prev, qrCode: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -52,8 +68,7 @@ export function AdminSettingsTab() {
           Contact & Payment Settings
         </h2>
         <p className="text-sm text-slate-500">
-          Manage all contact information displayed to students for premium
-          purchases.
+          Manage payment details and QR code displayed to students for premium purchases.
         </p>
       </div>
 
@@ -68,54 +83,66 @@ export function AdminSettingsTab() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
+          <div className="space-y-2 md:col-span-2">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Contact Number
+              Payment Mobile Number (PhonePe/GooglePay/Paytm)
             </label>
             <input
               type="text"
-              value={settings.contactNumber || ""}
+              value={settings.paymentNumber || ""}
               onChange={(e) =>
-                setSettings({ ...settings, contactNumber: e.target.value })
+                setSettings({ ...settings, paymentNumber: e.target.value })
               }
-              className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
-              placeholder="+91 9876543210"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              WhatsApp Number
-            </label>
-            <input
-              type="text"
-              value={settings.whatsappNumber || ""}
-              onChange={(e) =>
-                setSettings({ ...settings, whatsappNumber: e.target.value })
-              }
-              className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
-              placeholder="+91 9876543210"
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              placeholder="e.g. 9664532860"
             />
           </div>
 
           <div className="space-y-2 md:col-span-2">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              UPI ID
+              Payment QR Code Image
             </label>
-            <input
-              type="text"
-              value={settings.upiId || ""}
-              onChange={(e) =>
-                setSettings({ ...settings, upiId: e.target.value })
-              }
-              className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
-              placeholder="example@upi"
-            />
+            <div className="flex items-center space-x-6 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-800">
+              <div className="flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleQrUpload}
+                  className="block w-full text-sm text-slate-500 dark:text-slate-400
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-emerald-50 file:text-emerald-700
+                    dark:file:bg-emerald-900/30 dark:file:text-emerald-400
+                    hover:file:bg-emerald-100 dark:hover:file:bg-emerald-900/50"
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  Upload your payment QR code image (PNG, JPG, max 2MB).
+                </p>
+              </div>
+              {settings.qrCode && (
+                <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 shrink-0 bg-white flex items-center justify-center">
+                  <img
+                    src={settings.qrCode}
+                    alt="Payment QR Preview"
+                    className="max-w-full max-h-full object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSettings((prev) => ({ ...prev, qrCode: "" }))}
+                    className="absolute top-1 right-1 bg-rose-500 hover:bg-rose-600 text-white p-1 rounded-full text-xs transition-colors font-bold leading-none flex items-center justify-center w-5 h-5"
+                    title="Remove QR Code"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2 md:col-span-2">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Bank Account Details
+              Bank Account Details (Optional)
             </label>
             <textarea
               rows={3}
@@ -127,8 +154,6 @@ export function AdminSettingsTab() {
               placeholder="Bank Name:&#10;Account No:&#10;IFSC:"
             />
           </div>
-
-
 
           <div className="space-y-2 md:col-span-2">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
