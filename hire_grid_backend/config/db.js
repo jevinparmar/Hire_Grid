@@ -296,8 +296,26 @@ async function initDb() {
         CREATE INDEX IF NOT EXISTS idx_hierarchy_nodes_type ON hierarchy_nodes(type);
         CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
       `);
-    } else {
-      console.log("Database tables already exist. Checking migrations state...");
+    }
+
+    // Ensure critical schema alterations run outside the skipped migration block
+    try {
+      await pool.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS module_scores JSONB DEFAULT '{}';
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS purchased_companies JSONB DEFAULT '[]';
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_company_access JSONB DEFAULT '{}';
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_subject_access JSONB DEFAULT '{}';
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_topic_access JSONB DEFAULT '{}';
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_exam_access JSONB DEFAULT '{}';
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_module_access JSONB DEFAULT '{}';
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS max_devices INTEGER DEFAULT 1;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_devices JSONB DEFAULT '[]';
+        
+        ALTER TABLE plans ADD COLUMN IF NOT EXISTS upi_id VARCHAR(255);
+        ALTER TABLE plans ADD COLUMN IF NOT EXISTS contact_number VARCHAR(255);
+      `);
+    } catch (migErr) {
+      console.error("Critical bootstrap schema migration failed:", migErr.message);
     }
 
     // Create schema_migrations table if not exists and check if migrations have already run

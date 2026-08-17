@@ -74,7 +74,7 @@ export function AdminSettingsTab() {
             </label>
             <input
               type="text"
-              value={settings.contactNumber}
+              value={settings.contactNumber || ""}
               onChange={(e) =>
                 setSettings({ ...settings, contactNumber: e.target.value })
               }
@@ -89,7 +89,7 @@ export function AdminSettingsTab() {
             </label>
             <input
               type="text"
-              value={settings.whatsappNumber}
+              value={settings.whatsappNumber || ""}
               onChange={(e) =>
                 setSettings({ ...settings, whatsappNumber: e.target.value })
               }
@@ -104,7 +104,7 @@ export function AdminSettingsTab() {
             </label>
             <input
               type="text"
-              value={settings.upiId}
+              value={settings.upiId || ""}
               onChange={(e) =>
                 setSettings({ ...settings, upiId: e.target.value })
               }
@@ -119,7 +119,7 @@ export function AdminSettingsTab() {
             </label>
             <textarea
               rows={3}
-              value={settings.bankDetails}
+              value={settings.bankDetails || ""}
               onChange={(e) =>
                 setSettings({ ...settings, bankDetails: e.target.value })
               }
@@ -136,7 +136,7 @@ export function AdminSettingsTab() {
             </label>
             <textarea
               rows={4}
-              value={settings.instructions}
+              value={settings.instructions || ""}
               onChange={(e) =>
                 setSettings({ ...settings, instructions: e.target.value })
               }
