@@ -268,7 +268,10 @@ export async function setDoc(docRef, data, options = {}) {
       finalData = { ...current.data(), ...data };
     }
   }
-  const result = await api.post(`/${docRef.collectionName}`, { id: docRef.id, ...finalData });
+  const url = docRef.collectionName === "settings"
+    ? `/${docRef.collectionName}/${docRef.id}`
+    : `/${docRef.collectionName}`;
+  const result = await api.post(url, { id: docRef.id, ...finalData });
   notifyCollectionChange(docRef.collectionName);
   return result;
 }
