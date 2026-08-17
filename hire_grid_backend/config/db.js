@@ -334,9 +334,21 @@ async function initDb() {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        -- Security audit logs table
+        CREATE TABLE IF NOT EXISTS security_logs (
+          id VARCHAR(255) PRIMARY KEY,
+          user_id VARCHAR(255),
+          user_name VARCHAR(255),
+          user_email VARCHAR(255),
+          event_type VARCHAR(100) NOT NULL,
+          details TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_exam_attempts_user_module ON exam_attempts(user_id, module_id);
         CREATE INDEX IF NOT EXISTS idx_purchases_user_id ON purchases(user_id);
         CREATE INDEX IF NOT EXISTS idx_first_attempts_user_module ON first_attempts(user_id, module_id);
+        CREATE INDEX IF NOT EXISTS idx_security_logs_created_at ON security_logs(created_at DESC);
       `);
     } catch (migErr) {
       console.error("Critical bootstrap schema migration failed:", migErr.message);

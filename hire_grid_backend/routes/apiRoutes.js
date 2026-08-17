@@ -27,6 +27,10 @@ router.post("/attempts/start", sensitiveActionRateLimiter, dataController.startE
 router.post("/attempts/:id/sync", dataController.syncExamAttempt);
 router.post("/attempts/:id/submit", sensitiveActionRateLimiter, dataController.submitExamAttempt);
 
+// Security Logs
+router.post("/security-logs", dataController.logSecurityEvent);
+router.get("/security-logs", dataController.getSecurityLogs);
+
 // Modules
 router.get("/modules", dataController.getModules);
 router.post("/modules", dataController.saveModules);

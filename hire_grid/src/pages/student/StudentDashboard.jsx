@@ -70,6 +70,14 @@ export default function StudentDashboard() {
   const [attemptId, setAttemptId] = useState(null);
   const [watermarkOffset, setWatermarkOffset] = useState({ x: 0, y: 0 });
   const [correctAnswers, setCorrectAnswers] = useState({});
+  const [watermarkOpacity, setWatermarkOpacity] = useState(0.012);
+
+  const triggerWatermarkVisibility = () => {
+    setWatermarkOpacity(0.35);
+    setTimeout(() => {
+      setWatermarkOpacity(0.012);
+    }, 15000);
+  };
 
   useEffect(() => {
     const isTestActive = activeModule && currentQuestionIndex >= 0 && !isFinished && !isReviewing;
@@ -504,7 +512,14 @@ export default function StudentDashboard() {
 
     if (!isTestActive) return;
 
-    const triggerViolation = () => {
+    const triggerViolation = (type = "tab_switch") => {
+      triggerWatermarkVisibility();
+
+      api.post("/security-logs", {
+        eventType: type === "blur" ? "window_blur" : "tab_switch",
+        details: `Assessment violation triggered (tab switch / window minimized) on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
+      }).catch(() => {});
+
       setWarningCount((prev) => {
         const nextCount = prev + 1;
         if (attemptId) {
@@ -525,12 +540,12 @@ export default function StudentDashboard() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        triggerViolation();
+        triggerViolation("visibility");
       }
     };
 
     const handleBlur = () => {
-      triggerViolation();
+      triggerViolation("blur");
     };
 
     const handleFullscreenChange = () => {
@@ -539,32 +554,54 @@ export default function StudentDashboard() {
       );
       setIsFullscreen(inFS);
       if (!inFS) {
-        triggerViolation();
+        triggerViolation("fullscreen");
       }
     };
 
     const handleKeydown = (e) => {
-      // Block common screenshot shortcuts and PrintScreen
-      if (
-        e.key === "PrintScreen" || 
-        (e.metaKey && e.shiftKey && (e.key === "3" || e.key === "4" || e.key === "s" || e.key === "S")) ||
-        (e.ctrlKey && e.key === "p") || (e.metaKey && e.key === "p") // Also block printing shortcut
-      ) {
+      const isScreenshotKey = e.key === "PrintScreen" || 
+        (e.metaKey && e.shiftKey && (e.key === "3" || e.key === "4" || e.key === "s" || e.key === "S"));
+      const isPrintKey = (e.ctrlKey && e.key === "p") || (e.metaKey && e.key === "p");
+
+      if (isScreenshotKey || isPrintKey) {
         e.preventDefault();
-        showToast("Anti-Cheat: Screen capturing or printing is disabled during exams.", "warning");
+        triggerWatermarkVisibility();
+
+        const eventType = isScreenshotKey ? "screenshot_attempt" : "print_attempt";
+        const details = isScreenshotKey
+          ? `Screenshot capture attempt detected (shortcut keys) on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
+          : `Print screen / PDF export attempt detected on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`;
+
+        api.post("/security-logs", { eventType, details }).catch(() => {});
+        showToast("Anti-Cheat: Screen capturing or printing is disabled. This incident has been reported to the Super Admin.", "warning");
       }
     };
 
     const handleCopyPaste = (e) => {
       e.preventDefault();
+      triggerWatermarkVisibility();
+      api.post("/security-logs", {
+        eventType: "copy_attempt",
+        details: `Copy/Paste block triggered on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
+      }).catch(() => {});
       showToast("Anti-Cheat: Copy/Paste is disabled during exams.", "warning");
     };
 
     const handleContextMenu = (e) => {
       e.preventDefault();
+      triggerWatermarkVisibility();
+      api.post("/security-logs", {
+        eventType: "copy_attempt",
+        details: `Right-click context menu block triggered on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
+      }).catch(() => {});
     };
 
     const handleBeforePrint = () => {
+      triggerWatermarkVisibility();
+      api.post("/security-logs", {
+        eventType: "print_attempt",
+        details: `Print dialog trigger detected on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
+      }).catch(() => {});
       document.body.style.display = "none";
     };
     const handleAfterPrint = () => {
@@ -2055,7 +2092,11 @@ export default function StudentDashboard() {
                       {/* Dynamic Watermark */}
                       <div className="watermark-overlay" style={{ transform: `translate(${watermarkOffset.x}px, ${watermarkOffset.y}px) rotate(-25deg) scale(1.2)` }}>
                         {Array.from({ length: 16 }).map((_, i) => (
-                          <div key={i} className="watermark-item select-none text-slate-350/5 dark:text-slate-650/5">
+                          <div 
+                            key={i} 
+                            className="watermark-item select-none text-slate-400 dark:text-slate-650"
+                            style={{ opacity: watermarkOpacity, transition: "opacity 0.3s ease-in-out" }}
+                          >
                             {currentUserDoc ? `${currentUserDoc.name || "Student"} • ${currentUserDoc.email ? currentUserDoc.email.replace(/(.{2})(.*)(@.*)/, "$1***$3") : ""} • ID: ${currentUserDoc.id ? currentUserDoc.id.substring(0, 8) : ""}` : "Protected Assessment"}
                             <br />
                             {new Date().toLocaleDateString()} • Attempt: {attemptId ? attemptId.substring(0, 8) : "Active"}

@@ -1914,3 +1914,66 @@ exports.submitExamAttempt = async (req, res) => {
     res.status(500).json({ error: "Failed to submit and grade exam." });
   }
 };
+
+// ================= SECURITY LOGS =================
+
+exports.logSecurityEvent = async (req, res) => {
+  const { eventType, details } = req.body;
+  const userId = req.user ? req.user.id : null;
+  const userEmail = req.user ? req.user.email : null;
+
+  try {
+    let userName = "Unknown Student";
+    if (userId) {
+      const userRes = await pool.query(
+        "SELECT name FROM users WHERE id = $1 UNION SELECT name FROM admin_users WHERE id = $1 UNION SELECT name FROM content_managers WHERE id = $1",
+        [userId]
+      );
+      if (userRes.rows.length > 0) {
+        userName = userRes.rows[0].name;
+      }
+    }
+
+    const logId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO security_logs (id, user_id, user_name, user_email, event_type, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [logId, userId, userName, userEmail, eventType, details || ""]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Log security event error:", err);
+    res.status(500).json({ error: "Failed to record security log." });
+  }
+};
+
+exports.getSecurityLogs = async (req, res) => {
+  const userId = req.user ? req.user.id : null;
+  try {
+    const adminCheck = await pool.query(
+      "SELECT id FROM admin_users WHERE id = $1 UNION SELECT id FROM content_managers WHERE id = $1",
+      [userId]
+    );
+    if (adminCheck.rows.length === 0) {
+      return res.status(403).json({ error: "Unauthorized access to security logs." });
+    }
+
+    const result = await pool.query("SELECT * FROM security_logs ORDER BY created_at DESC LIMIT 150");
+    
+    // Camelcase mapping
+    const formattedLogs = result.rows.map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      eventType: row.event_type,
+      details: row.details,
+      createdAt: row.created_at
+    }));
+
+    res.json({ success: true, logs: formattedLogs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

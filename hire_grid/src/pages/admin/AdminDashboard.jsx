@@ -11,6 +11,7 @@ import {
   ChevronRight,
   MessageSquare,
   CreditCard,
+  ShieldAlert,
 } from "lucide-react";
 import { AdminUsersTab } from "../../components/admin/AdminUsersTab";
 import { AdminSettingsTab } from "../../components/admin/AdminSettingsTab";
@@ -18,6 +19,7 @@ import { AdminPaymentRequestsTab } from "../../components/admin/AdminPaymentRequ
 import { AdminDeviceRequestsTab } from "../../components/admin/AdminDeviceRequestsTab";
 import { AdminFeedbacksTab } from "../../components/admin/AdminFeedbacksTab";
 import { AdminPlansTab } from "../../components/admin/AdminPlansTab";
+import { AdminAuditLogTab } from "../../components/admin/AdminAuditLogTab";
 
 export default function AdminDashboard() {
   const location = useLocation();
@@ -148,6 +150,13 @@ export default function AdminDashboard() {
             isOpen={sidebarOpen}
           />
           <SidebarItem
+            icon={<ShieldAlert className="w-5 h-5" />}
+            label="Security Logs"
+            active={activeWorkspace === "system" && activeSubTab === "audit_logs"}
+            onClick={() => setView("system", "audit_logs")}
+            isOpen={sidebarOpen}
+          />
+          <SidebarItem
             icon={<CreditCard />}
             label="Plan Management"
             active={activeWorkspace === "system" && activeSubTab === "plans"}
@@ -239,6 +248,9 @@ export default function AdminDashboard() {
               )}
               {activeWorkspace === "system" && activeSubTab === "feedbacks" && (
                 <AdminFeedbacksTab isContentManager={false} />
+              )}
+              {activeWorkspace === "system" && activeSubTab === "audit_logs" && (
+                <AdminAuditLogTab />
               )}
               {activeWorkspace === "system" && activeSubTab === "plans" && (
                 <AdminPlansTab userName={userName} />
