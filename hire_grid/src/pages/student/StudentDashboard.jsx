@@ -136,6 +136,19 @@ export default function StudentDashboard() {
     } catch (e) {}
   };
 
+  const handleStartReview = () => {
+    enterFullscreen();
+    setWarningCount(0);
+    setShowWarningModal(false);
+    setIsReviewing(true);
+  };
+
+  const handleExitReview = () => {
+    exitFullscreen();
+    setIsReviewing(false);
+    setShowWarningModal(false);
+  };
+
   const [stats, setStats] = useState({
     xp: 0,
     streak: 3,
@@ -504,33 +517,41 @@ export default function StudentDashboard() {
 
   // Anti-Cheating Security Listener (Tab Switch, Window Blur, Fullscreen Exit)
   useEffect(() => {
-    const isTestActive =
+    const isSecurityActive =
       activeModule &&
-      currentQuestionIndex >= 0 &&
-      !isFinished &&
-      !isReviewing;
+      ((currentQuestionIndex >= 0 && !isFinished && !isReviewing) || isReviewing);
 
-    if (!isTestActive) return;
+    if (!isSecurityActive) return;
 
     const triggerViolation = (type = "tab_switch") => {
       triggerWatermarkVisibility();
 
       api.post("/security-logs", {
         eventType: type === "blur" ? "window_blur" : "tab_switch",
-        details: `Assessment violation triggered (tab switch / window minimized) on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
+        details: isReviewing
+          ? `Review mode violation (tab switch/window blur) on module "${activeModule.title}"`
+          : `Assessment violation triggered (tab switch / window minimized) on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
       }).catch(() => {});
 
       setWarningCount((prev) => {
         const nextCount = prev + 1;
-        if (attemptId) {
+        if (attemptId && !isReviewing) {
           api.post(`/attempts/${attemptId}/sync`, { violationCount: nextCount }).catch(() => {});
         }
         if (nextCount >= 3) {
-          showToast(
-            "ANTI-CHEATING SYSTEM VIOLATION: Maximum allowed security warnings exceeded (3/3). Your exam is being automatically submitted immediately.",
-            "warning", 6000
-          );
-          handleFinishTest(true);
+          if (isReviewing) {
+            showToast(
+              "ANTI-CHEATING SYSTEM VIOLATION: Maximum allowed security warnings exceeded (3/3). Exiting review screen.",
+              "warning", 6000
+            );
+            handleExitReview();
+          } else {
+            showToast(
+              "ANTI-CHEATING SYSTEM VIOLATION: Maximum allowed security warnings exceeded (3/3). Your exam is being automatically submitted immediately.",
+              "warning", 6000
+            );
+            handleFinishTest(true);
+          }
         } else {
           setShowWarningModal(true);
         }
@@ -569,8 +590,12 @@ export default function StudentDashboard() {
 
         const eventType = isScreenshotKey ? "screenshot_attempt" : "print_attempt";
         const details = isScreenshotKey
-          ? `Screenshot capture attempt detected (shortcut keys) on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
-          : `Print screen / PDF export attempt detected on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`;
+          ? (isReviewing 
+              ? `Screenshot capture attempt detected in review mode on module "${activeModule.title}"`
+              : `Screenshot capture attempt detected (shortcut keys) on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`)
+          : (isReviewing
+              ? `Print screen / PDF export attempt in review mode on module "${activeModule.title}"`
+              : `Print screen / PDF export attempt detected on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`);
 
         api.post("/security-logs", { eventType, details }).catch(() => {});
         showToast("Anti-Cheat: Screen capturing or printing is disabled. This incident has been reported to the Super Admin.", "warning");
@@ -582,7 +607,9 @@ export default function StudentDashboard() {
       triggerWatermarkVisibility();
       api.post("/security-logs", {
         eventType: "copy_attempt",
-        details: `Copy/Paste block triggered on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
+        details: isReviewing
+          ? `Copy/Paste block triggered in review mode on module "${activeModule.title}"`
+          : `Copy/Paste block triggered on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
       }).catch(() => {});
       showToast("Anti-Cheat: Copy/Paste is disabled during exams.", "warning");
     };
@@ -592,7 +619,9 @@ export default function StudentDashboard() {
       triggerWatermarkVisibility();
       api.post("/security-logs", {
         eventType: "copy_attempt",
-        details: `Right-click context menu block triggered on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
+        details: isReviewing
+          ? `Right-click context menu block triggered in review mode on module "${activeModule.title}"`
+          : `Right-click context menu block triggered on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
       }).catch(() => {});
     };
 
@@ -600,7 +629,9 @@ export default function StudentDashboard() {
       triggerWatermarkVisibility();
       api.post("/security-logs", {
         eventType: "print_attempt",
-        details: `Print dialog trigger detected on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
+        details: isReviewing
+          ? `Print dialog trigger in review mode on module "${activeModule.title}"`
+          : `Print dialog trigger detected on module "${activeModule.title}" (Question ${currentQuestionIndex + 1})`
       }).catch(() => {});
       document.body.style.display = "none";
     };
@@ -1731,7 +1762,10 @@ export default function StudentDashboard() {
             ) : (
               <div className="max-w-3xl mx-auto">
                 <button
-                  onClick={() => setActiveModule(null)}
+                  onClick={() => {
+                    exitFullscreen();
+                    setActiveModule(null);
+                  }}
                   className="flex items-center text-sm text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white mb-6 transition-colors font-medium"
                 >
                   <ArrowLeft className="w-4 h-4 mr-1.5" />
@@ -1740,7 +1774,98 @@ export default function StudentDashboard() {
                 <div className="glass-panel rounded-2xl shadow-lg border border-emerald-500/20 p-6 md:p-10 transition-colors">
                   {isFinished ? (
                     isReviewing ? (
-                      <div>
+                      <div
+                        className="select-none-all relative overflow-hidden"
+                        onContextMenu={(e) => e.preventDefault()}
+                        onCopy={(e) => e.preventDefault()}
+                        onCut={(e) => e.preventDefault()}
+                        onDragStart={(e) => e.preventDefault()}
+                        style={{
+                          userSelect: "none",
+                          WebkitUserSelect: "none",
+                          msUserSelect: "none",
+                        }}
+                      >
+                        <style>{`
+                          .watermark-overlay {
+                            position: absolute;
+                            inset: 0;
+                            pointer-events: none;
+                            user-select: none;
+                            overflow: hidden;
+                            z-index: 50;
+                            display: grid;
+                            grid-template-columns: repeat(4, 1fr);
+                            grid-template-rows: repeat(4, 1fr);
+                            gap: 60px;
+                            transition: transform 0.5s ease-in-out;
+                          }
+                          .watermark-item {
+                            font-size: 10px;
+                            font-weight: bold;
+                            font-family: monospace;
+                            text-align: center;
+                            white-space: nowrap;
+                          }
+                          @media print {
+                            body {
+                              display: none !important;
+                            }
+                            .select-none-all {
+                              display: none !important;
+                            }
+                          }
+                        `}</style>
+
+                        {/* Dynamic Watermark */}
+                        <div className="watermark-overlay" style={{ transform: `translate(${watermarkOffset.x}px, ${watermarkOffset.y}px) rotate(-25deg) scale(1.2)` }}>
+                          {Array.from({ length: 16 }).map((_, i) => (
+                            <div 
+                              key={i} 
+                              className="watermark-item select-none text-slate-400 dark:text-slate-650"
+                              style={{ opacity: watermarkOpacity, transition: "opacity 0.3s ease-in-out" }}
+                            >
+                              {currentUserDoc ? `${currentUserDoc.name || "Student"} • ${currentUserDoc.email ? currentUserDoc.email.replace(/(.{2})(.*)(@.*)/, "$1***$3") : ""} • ID: ${currentUserDoc.id ? currentUserDoc.id.substring(0, 8) : ""}` : "Protected Assessment"}
+                              <br />
+                              {new Date().toLocaleDateString()} • Attempt: {attemptId ? attemptId.substring(0, 8) : "Active"}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Anti-Cheating Violation Modal Overlay inside Review */}
+                        {showWarningModal && (
+                          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+                            <div className="bg-white dark:bg-slate-900 border-2 border-rose-500 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-center">
+                              <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/50 rounded-full flex items-center justify-center mx-auto mb-4 text-rose-600 dark:text-rose-400">
+                                <AlertTriangle className="w-10 h-10 animate-bounce" />
+                              </div>
+                              <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 mb-2">
+                                Anti-Cheating Security Alert
+                              </h3>
+                              <p className="text-sm font-semibold text-rose-600 dark:text-rose-400 mb-4">
+                                Tab switching, window minimization, or exiting fullscreen is strictly prohibited!
+                              </p>
+                              <div className="bg-slate-100 dark:bg-slate-800/80 p-4 rounded-xl mb-6 text-slate-700 dark:text-slate-300 text-sm">
+                                <p className="font-bold text-base mb-1">
+                                  Warning Status: <span className="text-rose-500 font-mono font-black">{warningCount} of 3 Allowed Warnings</span>
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                  Exceeding 3 warnings will result in immediate termination of review session.
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  enterFullscreen();
+                                  setShowWarningModal(false);
+                                }}
+                                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-base shadow-lg transition-all"
+                              >
+                                Re-enter Fullscreen & Continue Review
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
                           Review Answers
                         </h2>
@@ -1879,7 +2004,7 @@ export default function StudentDashboard() {
                         </div>
                         <div className="mt-8 flex justify-center">
                           <button
-                            onClick={() => setIsReviewing(false)}
+                            onClick={handleExitReview}
                             className="px-6 py-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold rounded-xl transition-colors"
                           >
                             Back to Result
@@ -1944,7 +2069,7 @@ export default function StudentDashboard() {
 
                               <div className="flex justify-center space-x-4">
                                 <button
-                                  onClick={() => setIsReviewing(true)}
+                                  onClick={handleStartReview}
                                   className="px-6 py-3 glass-panel border-2 border-emerald-600 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 font-bold rounded-xl transition-colors shadow-sm"
                                 >
                                   Review Answers
