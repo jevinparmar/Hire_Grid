@@ -865,7 +865,8 @@ exports.getUserById = async (req, res) => {
               granted_subject_access AS "grantedSubjectAccess",
               granted_topic_access AS "grantedTopicAccess",
               granted_exam_access AS "grantedExamAccess",
-              granted_module_access AS "grantedModuleAccess" 
+              granted_module_access AS "grantedModuleAccess",
+              module_scores AS "moduleScores" 
        FROM users 
        WHERE id = $1`,
       [id]

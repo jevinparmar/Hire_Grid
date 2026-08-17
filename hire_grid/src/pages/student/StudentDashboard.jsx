@@ -412,6 +412,7 @@ export default function StudentDashboard() {
         if (docSnap.exists()) {
           const d = docSnap.data();
           setCurrentUserDoc({ id: docSnap.id, ...d });
+          setModuleScores(d.moduleScores || {});
           setStats({
             xp: d.xp || 0,
             streak: d.streak || 3,
