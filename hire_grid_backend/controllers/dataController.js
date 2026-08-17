@@ -596,7 +596,17 @@ exports.deleteExam = async (req, res) => {
 exports.getSettings = async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT * FROM settings WHERE id = $1", [id]);
+    const result = await pool.query(
+      `SELECT id, 
+              contact_number AS "contactNumber", 
+              whatsapp_number AS "whatsappNumber", 
+              upi_id AS "upiId", 
+              bank_details AS "bankDetails", 
+              instructions 
+       FROM settings 
+       WHERE id = $1`,
+      [id]
+    );
     if (result.rows.length === 0) {
       return res.json({ success: true, settings: {} });
     }

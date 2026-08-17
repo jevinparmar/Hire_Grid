@@ -21,7 +21,14 @@ export function PremiumPurchaseView({
   onBack,
   currentUser,
 }) {
-  const [settings, setSettings] = useState(null);
+  const [settings, setSettings] = useState({
+    contactNumber: "",
+    whatsappNumber: "",
+    upiId: "",
+    bankDetails: "",
+    instructions:
+      "Step 1: Send payment using the provided payment details.\nStep 2: Submit transaction details.\nStep 3: Wait for admin approval.",
+  });
   const [loading, setLoading] = useState(true);
 
   const [transactionId, setTransactionId] = useState("");
@@ -44,7 +51,8 @@ export function PremiumPurchaseView({
         const docRef = doc(db, "settings", "payment");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setSettings(docSnap.data());
+          const data = docSnap.data();
+          setSettings((prev) => ({ ...prev, ...data }));
         }
       } catch (err) {
         console.error(err);
@@ -177,11 +185,13 @@ export function PremiumPurchaseView({
               </p>
             </div>
 
-            {settings ? (
+            {settings.instructions || settings.upiId || settings.contactNumber || settings.whatsappNumber || settings.bankDetails ? (
               <div className="space-y-6">
-                <div className="whitespace-pre-wrap text-slate-600 dark:text-slate-300 text-sm leading-relaxed bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                  {settings.instructions}
-                </div>
+                {settings.instructions && (
+                  <div className="whitespace-pre-wrap text-slate-600 dark:text-slate-300 text-sm leading-relaxed bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                    {settings.instructions}
+                  </div>
+                )}
 
                 <div className="space-y-4">
                   {settings.upiId && (
