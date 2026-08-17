@@ -43,6 +43,8 @@ export function AdminPlansTab({ userName }) {
   const [durationDays, setDurationDays] = useState(30);
   const [isActive, setIsActive] = useState(true);
   const [isFreemium, setIsFreemium] = useState(false);
+  const [upiId, setUpiId] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
   
   // Selection State
   const [learningContent, setLearningContent] = useState([]); // Selected Branch/Subject/Topic/Module IDs
@@ -221,6 +223,8 @@ export function AdminPlansTab({ userName }) {
         companyModules,
         freeDemoModules,
         companyBranches,
+        upiId,
+        contactNumber,
       };
 
       await api.post("/plans", payload).catch(() => {});
@@ -244,6 +248,8 @@ export function AdminPlansTab({ userName }) {
       setCompanyModules([]);
       setFreeDemoModules([]);
       setCompanyBranches([]);
+      setUpiId("");
+      setContactNumber("");
       showToast("Plan saved successfully!", "success");
     } catch (err) {
       showToast("Error saving plan: " + err.message, "error");
@@ -262,6 +268,8 @@ export function AdminPlansTab({ userName }) {
     setCompanyModules(plan.companyModules || plan.company_modules || []);
     setFreeDemoModules(plan.freeDemoModules || plan.free_demo_modules || []);
     setCompanyBranches(plan.companyBranches || plan.company_branches || []);
+    setUpiId(plan.upiId || plan.upi_id || "");
+    setContactNumber(plan.contactNumber || plan.contact_number || "");
     setIsFormOpen(true);
   };
 
@@ -376,6 +384,8 @@ export function AdminPlansTab({ userName }) {
               setCompanyModules([]);
               setFreeDemoModules([]);
               setCompanyBranches([]);
+              setUpiId("");
+              setContactNumber("");
               setIsFormOpen(true);
             }}
             className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold text-sm px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-500/10 transition-all duration-200"
@@ -480,6 +490,28 @@ export function AdminPlansTab({ userName }) {
                 />
                 <span className="text-sm font-medium text-slate-300">Freemium Toggle</span>
               </label>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300">Custom Payment UPI ID (Optional)</label>
+              <input
+                type="text"
+                value={upiId}
+                onChange={(e) => setUpiId(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-[#070D19] text-slate-100 focus:border-emerald-500 focus:outline-none"
+                placeholder="e.g. upi@id"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300">Custom Payment Number (Optional)</label>
+              <input
+                type="text"
+                value={contactNumber}
+                onChange={(e) => setContactNumber(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-[#070D19] text-slate-100 focus:border-emerald-500 focus:outline-none"
+                placeholder="e.g. 9876543210"
+              />
             </div>
           </div>
 

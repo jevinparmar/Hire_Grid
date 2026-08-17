@@ -1345,6 +1345,8 @@ exports.getPlans = async (req, res) => {
         learning_content AS "learningContent", 
         company_modules AS "companyModules", 
         free_demo_modules AS "freeDemoModules", 
+        upi_id AS "upiId",
+        contact_number AS "contactNumber",
         created_at AS "createdAt"
       FROM plans
     `;
@@ -1395,6 +1397,8 @@ exports.getPlanById = async (req, res) => {
         learning_content AS "learningContent", 
         company_modules AS "companyModules", 
         free_demo_modules AS "freeDemoModules", 
+        upi_id AS "upiId",
+        contact_number AS "contactNumber",
         created_at AS "createdAt"
        FROM plans WHERE id = $1`,
       [id]
@@ -1432,6 +1436,8 @@ exports.savePlan = async (req, res) => {
     companyModules,
     freeDemoModules,
     companyBranches, // Array of { companyId, branchId }
+    upiId,
+    contactNumber,
   } = req.body;
   const planId = id || crypto.randomUUID();
   try {
@@ -1439,9 +1445,9 @@ exports.savePlan = async (req, res) => {
 
     await pool.query(
       `INSERT INTO plans (
-        id, name, price, duration, duration_days, is_active, is_freemium, learning_content, company_modules, free_demo_modules
+        id, name, price, duration, duration_days, is_active, is_freemium, learning_content, company_modules, free_demo_modules, upi_id, contact_number
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (id) DO UPDATE
        SET name = EXCLUDED.name,
            price = EXCLUDED.price,
@@ -1451,7 +1457,9 @@ exports.savePlan = async (req, res) => {
            is_freemium = EXCLUDED.is_freemium,
            learning_content = EXCLUDED.learning_content,
            company_modules = EXCLUDED.company_modules,
-           free_demo_modules = EXCLUDED.free_demo_modules`,
+           free_demo_modules = EXCLUDED.free_demo_modules,
+           upi_id = EXCLUDED.upi_id,
+           contact_number = EXCLUDED.contact_number`,
       [
         planId,
         name,
@@ -1463,6 +1471,8 @@ exports.savePlan = async (req, res) => {
         JSON.stringify(learningContent || []),
         JSON.stringify(companyModules || []),
         JSON.stringify(freeDemoModules || []),
+        upiId || null,
+        contactNumber || null,
       ]
     );
 

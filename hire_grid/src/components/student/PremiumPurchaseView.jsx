@@ -48,11 +48,38 @@ export function PremiumPurchaseView({
   useEffect(() => {
     const fetchSettings = async () => {
       try {
+        let customUpi = "";
+        let customPhone = "";
+        if (itemType === "plan") {
+          try {
+            const planRef = doc(db, "plans", itemId);
+            const planSnap = await getDoc(planRef);
+            if (planSnap.exists()) {
+              const planData = planSnap.data();
+              if (planData.upiId) customUpi = planData.upiId;
+              if (planData.contactNumber) customPhone = planData.contactNumber;
+            }
+          } catch (e) {
+            console.error("Failed to load plan details for custom payment settings:", e);
+          }
+        }
+
         const docRef = doc(db, "settings", "payment");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setSettings((prev) => ({ ...prev, ...data }));
+          setSettings((prev) => ({
+            ...prev,
+            ...data,
+            ...(customUpi ? { upiId: customUpi } : {}),
+            ...(customPhone ? { contactNumber: customPhone } : {}),
+          }));
+        } else {
+          setSettings((prev) => ({
+            ...prev,
+            ...(customUpi ? { upiId: customUpi } : {}),
+            ...(customPhone ? { contactNumber: customPhone } : {}),
+          }));
         }
       } catch (err) {
         console.error(err);
@@ -61,7 +88,7 @@ export function PremiumPurchaseView({
       }
     };
     fetchSettings();
-  }, []);
+  }, [itemId, itemType]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

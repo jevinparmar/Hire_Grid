@@ -450,6 +450,10 @@ async function initDb() {
       ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS amount NUMERIC(10, 2) DEFAULT 0;
       -- Nullability alterations
       ALTER TABLE payment_requests ALTER COLUMN amount DROP NOT NULL;
+
+      -- Plans additions
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS upi_id VARCHAR(255);
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS contact_number VARCHAR(255);
     `);
 
     // 3. Conditional Legacy Migrations
