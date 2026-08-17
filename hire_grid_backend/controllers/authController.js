@@ -367,18 +367,16 @@ exports.googleLogin = async (req, res) => {
   }
 
   try {
-    // Decode the Google JWT ID token (header.payload.signature)
-    // We decode the payload to get user info
-    const parts = credential.split(".");
-    if (parts.length !== 3) {
-      return res.status(400).json({ error: "Invalid Google token format." });
-    }
-
-    // Base64url decode the payload
-    const payload = JSON.parse(
-      Buffer.from(parts[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8")
+    // Secure token signature verification using Google's tokeninfo API
+    const googleVerifyRes = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`
     );
 
+    if (!googleVerifyRes.ok) {
+      return res.status(401).json({ error: "Google credential verification failed. Invalid signature." });
+    }
+
+    const payload = await googleVerifyRes.json();
     const { sub: googleId, email, name, picture } = payload;
 
     if (!email || !googleId) {

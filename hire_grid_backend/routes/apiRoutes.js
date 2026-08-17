@@ -3,9 +3,13 @@ const router = express.Router();
 const dataController = require("../controllers/dataController");
 const parseController = require("../controllers/parseController");
 const authMiddleware = require("../middlewares/authMiddleware");
+const { apiRateLimiter, sensitiveActionRateLimiter } = require("../middlewares/securityMiddleware");
 
 // Protect all API routes
 router.use(authMiddleware);
+
+// Apply API-wide rate limiting
+router.use(apiRateLimiter);
 
 // Cache-Control headers for GET endpoints to reduce DB hits
 router.use((req, res, next) => {
@@ -17,6 +21,11 @@ router.use((req, res, next) => {
 
 // Parse MCQ (Gemini)
 router.post("/parse-mcq", parseController.parseMcq);
+
+// Exam Attempts (secure session-based testing)
+router.post("/attempts/start", sensitiveActionRateLimiter, dataController.startExamAttempt);
+router.post("/attempts/:id/sync", dataController.syncExamAttempt);
+router.post("/attempts/:id/submit", sensitiveActionRateLimiter, dataController.submitExamAttempt);
 
 // Modules
 router.get("/modules", dataController.getModules);

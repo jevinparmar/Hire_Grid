@@ -319,6 +319,24 @@ async function initDb() {
         
         ALTER TABLE plans ADD COLUMN IF NOT EXISTS qr_code TEXT;
         ALTER TABLE plans ADD COLUMN IF NOT EXISTS payment_number VARCHAR(255);
+
+        -- Exam attempts table for secure session-based testing and anti-cheating violations
+        CREATE TABLE IF NOT EXISTS exam_attempts (
+          id VARCHAR(255) PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL,
+          module_id VARCHAR(255) NOT NULL,
+          started_at BIGINT NOT NULL,
+          expires_at BIGINT NOT NULL,
+          status VARCHAR(50) DEFAULT 'active',
+          violation_count INTEGER DEFAULT 0,
+          last_activity BIGINT NOT NULL,
+          answers JSONB DEFAULT '{}',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_exam_attempts_user_module ON exam_attempts(user_id, module_id);
+        CREATE INDEX IF NOT EXISTS idx_purchases_user_id ON purchases(user_id);
+        CREATE INDEX IF NOT EXISTS idx_first_attempts_user_module ON first_attempts(user_id, module_id);
       `);
     } catch (migErr) {
       console.error("Critical bootstrap schema migration failed:", migErr.message);

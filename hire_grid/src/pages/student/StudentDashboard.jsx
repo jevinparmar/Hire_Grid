@@ -67,6 +67,42 @@ export default function StudentDashboard() {
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  const [attemptId, setAttemptId] = useState(null);
+  const [watermarkOffset, setWatermarkOffset] = useState({ x: 0, y: 0 });
+  const [correctAnswers, setCorrectAnswers] = useState({});
+
+  useEffect(() => {
+    const isTestActive = activeModule && currentQuestionIndex >= 0 && !isFinished && !isReviewing;
+    if (isTestActive) {
+      const interval = setInterval(() => {
+        setWatermarkOffset({
+          x: Math.floor(Math.random() * 40) - 20,
+          y: Math.floor(Math.random() * 40) - 20,
+        });
+      }, 20000);
+      return () => clearInterval(interval);
+    }
+  }, [activeModule, currentQuestionIndex, isFinished, isReviewing]);
+
+  // Heartbeat / Attempt state auto-sync (runs every 30s)
+  useEffect(() => {
+    const isTestActive = attemptId && activeModule && currentQuestionIndex >= 0 && !isFinished && !isReviewing;
+    if (!isTestActive) return;
+
+    const interval = setInterval(async () => {
+      try {
+        await api.post(`/attempts/${attemptId}/sync`, {
+          answers,
+          violationCount: warningCount,
+        });
+      } catch (err) {
+        console.error("Auto-sync heartbeat failed:", err);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [attemptId, activeModule, currentQuestionIndex, isFinished, isReviewing, answers, warningCount]);
+
   const enterFullscreen = () => {
     try {
       const elem = document.documentElement;
@@ -456,7 +492,7 @@ export default function StudentDashboard() {
     }
     const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
     return () => clearTimeout(timer);
-  }, [timeLeft, activeModule, isFinished, isReviewing, currentQuestionIndex]);
+  }, [timeLeft, activeModule, isFinished, isReviewing, currentQuestionIndex, attemptId]);
 
   // Anti-Cheating Security Listener (Tab Switch, Window Blur, Fullscreen Exit)
   useEffect(() => {
@@ -471,6 +507,9 @@ export default function StudentDashboard() {
     const triggerViolation = () => {
       setWarningCount((prev) => {
         const nextCount = prev + 1;
+        if (attemptId) {
+          api.post(`/attempts/${attemptId}/sync`, { violationCount: nextCount }).catch(() => {});
+        }
         if (nextCount >= 3) {
           showToast(
             "ANTI-CHEATING SYSTEM VIOLATION: Maximum allowed security warnings exceeded (3/3). Your exam is being automatically submitted immediately.",
@@ -525,6 +564,13 @@ export default function StudentDashboard() {
       e.preventDefault();
     };
 
+    const handleBeforePrint = () => {
+      document.body.style.display = "none";
+    };
+    const handleAfterPrint = () => {
+      document.body.style.display = "block";
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleBlur);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -533,6 +579,8 @@ export default function StudentDashboard() {
     document.addEventListener("copy", handleCopyPaste);
     document.addEventListener("paste", handleCopyPaste);
     document.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("beforeprint", handleBeforePrint);
+    window.addEventListener("afterprint", handleAfterPrint);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -543,8 +591,11 @@ export default function StudentDashboard() {
       document.removeEventListener("copy", handleCopyPaste);
       document.removeEventListener("paste", handleCopyPaste);
       document.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("beforeprint", handleBeforePrint);
+      window.removeEventListener("afterprint", handleAfterPrint);
+      document.body.style.display = "block";
     };
-  }, [activeModule, currentQuestionIndex, isFinished, isReviewing]);
+  }, [activeModule, currentQuestionIndex, isFinished, isReviewing, attemptId]);
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60)
@@ -568,20 +619,25 @@ export default function StudentDashboard() {
       setActiveMasterModule(mod);
     } else {
       try {
-        const res = await api.get(`/modules/${mod.id}/questions`);
+        const res = await api.post("/attempts/start", { moduleId: mod.id });
         const fetchedQuestions = res.questions || [];
         const fullModuleObj = { ...mod, questions: fetchedQuestions };
         setActiveModule(fullModuleObj);
-        setCurrentQuestionIndex(-1);
-        setAnswers({});
+        setAttemptId(res.attemptId);
+        setWarningCount(res.violationCount || 0);
+
+        const serverAnswers = { ...(res.answers || {}) };
+        delete serverAnswers._question_order;
+        setAnswers(serverAnswers);
+
         setMarkedForReview({});
         setIsFinished(false);
         setIsReviewing(false);
-        setWarningCount(0);
         setShowWarningModal(false);
-        setTimeLeft((mod.timeLimit || 30) * 60);
+        setTimeLeft(res.timeLeft);
+        setCurrentQuestionIndex(-1);
       } catch (err) {
-        showToast("Failed to load questions: " + err.message, "error");
+        showToast("Failed to initialize secure assessment: " + err.message, "error");
       }
     }
   };
@@ -597,6 +653,9 @@ export default function StudentDashboard() {
     if (!activeModule) return;
     const currentQ = activeModule.questions[currentQuestionIndex];
     setAnswers((prev) => ({ ...prev, [currentQ.id]: index }));
+    if (attemptId) {
+      api.post(`/attempts/${attemptId}/sync`, { answers: { [currentQ.id]: index } }).catch(() => {});
+    }
   };
 
   const handleFinishTest = async (bypassConfirm = false) => {
@@ -612,9 +671,8 @@ export default function StudentDashboard() {
     setIsFinished(true);
 
     try {
-      // POST answers to the secure backend scoring endpoint
-      const result = await api.post("/scores", {
-        moduleId: activeModule.id,
+      // Submit and grade attempt securely on the backend
+      const result = await api.post(`/attempts/${attemptId}/submit`, {
         answers
       });
 
@@ -623,6 +681,10 @@ export default function StudentDashboard() {
         const correctCount = result.correctCount;
         const totalQ = result.totalQuestions;
         const gainedXP = result.xpEarned;
+
+        if (result.correctAnswers) {
+          setCorrectAnswers(result.correctAnswers);
+        }
 
         const newScores = {
           ...moduleScores,
@@ -1648,8 +1710,11 @@ export default function StudentDashboard() {
                         <div className="space-y-8">
                           {activeModule.questions.map((q, qIdx) => {
                             const userAnswer = answers[q.id];
+                            const actualCorrectIndex = q.correctAnswerIndex !== null && q.correctAnswerIndex !== undefined
+                              ? q.correctAnswerIndex
+                              : correctAnswers[q.id];
                             const isCorrect =
-                              userAnswer === q.correctAnswerIndex;
+                              userAnswer === actualCorrectIndex;
                             return (
                               <div
                                 key={q.id}
@@ -1710,7 +1775,7 @@ export default function StudentDashboard() {
                                         const isUserPick =
                                           userAnswer === optIdx;
                                         const isTrueCorrect =
-                                          q.correctAnswerIndex === optIdx;
+                                          actualCorrectIndex === optIdx;
                                         let ring =
                                           "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400";
                                         if (isTrueCorrect)
@@ -1944,7 +2009,60 @@ export default function StudentDashboard() {
                       </button>
                     </div>
                   ) : (
-                    <div className="select-none-all">
+                    <div 
+                      className="select-none-all relative overflow-hidden"
+                      onContextMenu={(e) => e.preventDefault()}
+                      onCopy={(e) => e.preventDefault()}
+                      onCut={(e) => e.preventDefault()}
+                      onDragStart={(e) => e.preventDefault()}
+                      style={{
+                        userSelect: "none",
+                        WebkitUserSelect: "none",
+                        msUserSelect: "none",
+                      }}
+                    >
+                      <style>{`
+                        .watermark-overlay {
+                          position: absolute;
+                          inset: 0;
+                          pointer-events: none;
+                          user-select: none;
+                          overflow: hidden;
+                          z-index: 50;
+                          display: grid;
+                          grid-template-columns: repeat(4, 1fr);
+                          grid-template-rows: repeat(4, 1fr);
+                          gap: 60px;
+                          transition: transform 0.5s ease-in-out;
+                        }
+                        .watermark-item {
+                          font-size: 10px;
+                          font-weight: bold;
+                          font-family: monospace;
+                          text-align: center;
+                          white-space: nowrap;
+                        }
+                        @media print {
+                          body {
+                            display: none !important;
+                          }
+                          .select-none-all {
+                            display: none !important;
+                          }
+                        }
+                      `}</style>
+
+                      {/* Dynamic Watermark */}
+                      <div className="watermark-overlay" style={{ transform: `translate(${watermarkOffset.x}px, ${watermarkOffset.y}px) rotate(-25deg) scale(1.2)` }}>
+                        {Array.from({ length: 16 }).map((_, i) => (
+                          <div key={i} className="watermark-item select-none text-slate-350/5 dark:text-slate-650/5">
+                            {currentUserDoc ? `${currentUserDoc.name || "Student"} • ${currentUserDoc.email ? currentUserDoc.email.replace(/(.{2})(.*)(@.*)/, "$1***$3") : ""} • ID: ${currentUserDoc.id ? currentUserDoc.id.substring(0, 8) : ""}` : "Protected Assessment"}
+                            <br />
+                            {new Date().toLocaleDateString()} • Attempt: {attemptId ? attemptId.substring(0, 8) : "Active"}
+                          </div>
+                        ))}
+                      </div>
+
                       {/* Anti-Cheating Violation Modal Overlay */}
                       {showWarningModal && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">

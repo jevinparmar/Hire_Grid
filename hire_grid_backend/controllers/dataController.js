@@ -1329,8 +1329,31 @@ exports.getModuleQuestions = async (req, res) => {
         return res.status(403).json({ error: accessCheck.reason || "Module access locked under current plan." });
       }
     }
+    
+    // Check if user is authorized to see correct answers (admin, content manager, or has already completed the module)
+    let includeCorrectAnswers = false;
+    if (userId) {
+      const adminCheck = await pool.query(
+        "SELECT id FROM admin_users WHERE id = $1 UNION SELECT id FROM content_managers WHERE id = $1",
+        [userId]
+      );
+      if (adminCheck.rows.length > 0) {
+        includeCorrectAnswers = true;
+      } else {
+        const completedCheck = await pool.query(
+          "SELECT 1 FROM first_attempts WHERE user_id = $1 AND module_id = $2",
+          [userId, id]
+        );
+        if (completedCheck.rows.length > 0) {
+          includeCorrectAnswers = true;
+        }
+      }
+    }
+
     const result = await pool.query(
-      `SELECT id, question, options, correct_answer_index AS "correctAnswerIndex", svg_code AS "svgCode", display_order AS "displayOrder"
+      `SELECT id, question, options, 
+              ${includeCorrectAnswers ? "correct_answer_index" : "NULL"} AS "correctAnswerIndex", 
+              svg_code AS "svgCode", display_order AS "displayOrder"
        FROM questions
        WHERE module_id = $1
        ORDER BY display_order ASC`,
@@ -1544,5 +1567,350 @@ exports.deletePlan = async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+// ================= EXAM ATTEMPTS =================
+
+// Start a new test attempt or resume an active one
+exports.startExamAttempt = async (req, res) => {
+  const { moduleId } = req.body;
+  const userId = req.user ? req.user.id : null;
+
+  if (!userId || !moduleId) {
+    return res.status(400).json({ error: "User ID and Module ID are required." });
+  }
+
+  try {
+    // 1. Verify module access
+    const accessCheck = await verifyUserItemAccess(userId, moduleId, "module");
+    if (!accessCheck.allowed) {
+      return res.status(403).json({ error: accessCheck.reason || "Access locked under current plan." });
+    }
+
+    // 2. Fetch module time limit
+    const modRes = await pool.query("SELECT time_limit FROM modules WHERE id = $1", [moduleId]);
+    if (modRes.rows.length === 0) {
+      return res.status(404).json({ error: "Module not found." });
+    }
+    const timeLimitMinutes = Number(modRes.rows[0].time_limit) || 30;
+    const timeLimitMs = timeLimitMinutes * 60 * 1000;
+
+    // 3. Check for existing active attempt
+    const activeAttemptRes = await pool.query(
+      `SELECT * FROM exam_attempts 
+       WHERE user_id = $1 AND module_id = $2 AND status = 'active' AND expires_at > $3`,
+      [userId, moduleId, Date.now()]
+    );
+
+    let attempt;
+    let shuffledQuestionIds = [];
+
+    if (activeAttemptRes.rows.length > 0) {
+      attempt = activeAttemptRes.rows[0];
+      if (attempt.answers && attempt.answers._question_order) {
+        shuffledQuestionIds = attempt.answers._question_order;
+      }
+    } else {
+      // Invalidate any older attempts
+      await pool.query(
+        "UPDATE exam_attempts SET status = 'expired' WHERE user_id = $1 AND module_id = $2 AND status = 'active'",
+        [userId, moduleId]
+      );
+
+      // Create new attempt
+      const attemptId = crypto.randomUUID();
+      const now = Date.now();
+      const expiresAt = now + timeLimitMs;
+
+      // Fetch all questions to determine the list of IDs for shuffling
+      const qRes = await pool.query("SELECT id FROM questions WHERE module_id = $1", [moduleId]);
+      shuffledQuestionIds = qRes.rows.map(r => r.id);
+      
+      // Fisher-Yates shuffle helper
+      let currentIndex = shuffledQuestionIds.length, randomIndex;
+      while (currentIndex !== 0) {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+        [shuffledQuestionIds[currentIndex], shuffledQuestionIds[randomIndex]] = [shuffledQuestionIds[randomIndex], shuffledQuestionIds[currentIndex]];
+      }
+
+      const initialAnswersJson = {
+        _question_order: shuffledQuestionIds
+      };
+
+      const newAttemptRes = await pool.query(
+        `INSERT INTO exam_attempts (id, user_id, module_id, started_at, expires_at, status, violation_count, last_activity, answers)
+         VALUES ($1, $2, $3, $4, $5, 'active', 0, $6, $7)
+         RETURNING *`,
+        [attemptId, userId, moduleId, now, expiresAt, now, JSON.stringify(initialAnswersJson)]
+      );
+      attempt = newAttemptRes.rows[0];
+    }
+
+    // 4. Fetch the questions (excluding correct answer key)
+    const questionsRes = await pool.query(
+      `SELECT id, question, options, NULL AS "correctAnswerIndex", svg_code AS "svgCode", display_order AS "displayOrder"
+       FROM questions
+       WHERE module_id = $1`,
+      [moduleId]
+    );
+
+    let questionsList = questionsRes.rows;
+
+    // Apply the saved shuffled order if available
+    if (shuffledQuestionIds.length > 0) {
+      const qMap = new Map(questionsList.map(q => [q.id, q]));
+      questionsList = shuffledQuestionIds
+        .map(id => qMap.get(id))
+        .filter(q => q !== undefined);
+    }
+
+    const secondsLeft = Math.max(0, Math.ceil((Number(attempt.expires_at) - Date.now()) / 1000));
+
+    res.json({
+      success: true,
+      attemptId: attempt.id,
+      questions: questionsList,
+      timeLeft: secondsLeft,
+      violationCount: attempt.violation_count,
+      answers: attempt.answers || {}
+    });
+  } catch (err) {
+    console.error("Start exam attempt error:", err);
+    res.status(500).json({ error: "Failed to initialize exam session." });
+  }
+};
+
+// Sync active attempt state (answers, warning violation count)
+exports.syncExamAttempt = async (req, res) => {
+  const { id } = req.params;
+  const { answers, violationCount } = req.body;
+  const userId = req.user ? req.user.id : null;
+
+  if (!userId) {
+    return res.status(401).json({ error: "Authentication required." });
+  }
+
+  try {
+    const attemptRes = await pool.query(
+      "SELECT * FROM exam_attempts WHERE id = $1 AND user_id = $2 AND status = 'active'",
+      [id, userId]
+    );
+
+    if (attemptRes.rows.length === 0) {
+      return res.status(404).json({ error: "Active exam session not found or expired." });
+    }
+
+    const attempt = attemptRes.rows[0];
+
+    // Check expiration
+    if (Number(attempt.expires_at) < Date.now()) {
+      await pool.query("UPDATE exam_attempts SET status = 'expired' WHERE id = $1", [id]);
+      return res.status(403).json({ error: "Time limit exceeded. Exam session is expired." });
+    }
+
+    // Preserve the randomized question order in the merged answers payload
+    const mergedAnswers = {
+      ...(attempt.answers || {}),
+      ...(answers || {})
+    };
+
+    let updatedViolations = attempt.violation_count;
+    if (violationCount !== undefined) {
+      updatedViolations = Number(violationCount);
+    }
+
+    await pool.query(
+      `UPDATE exam_attempts 
+       SET answers = $1, violation_count = $2, last_activity = $3 
+       WHERE id = $4`,
+      [JSON.stringify(mergedAnswers), updatedViolations, Date.now(), id]
+    );
+
+    res.json({ success: true, violationCount: updatedViolations });
+  } catch (err) {
+    console.error("Sync attempt error:", err);
+    res.status(500).json({ error: "Failed to sync exam state." });
+  }
+};
+
+// Submit and grade active attempt
+exports.submitExamAttempt = async (req, res) => {
+  const { id } = req.params;
+  const { answers = {} } = req.body;
+  const userId = req.user ? req.user.id : null;
+
+  if (!userId) {
+    return res.status(401).json({ error: "Authentication required." });
+  }
+
+  try {
+    // 1. Fetch attempt session
+    const attemptRes = await pool.query(
+      "SELECT * FROM exam_attempts WHERE id = $1 AND user_id = $2 AND status = 'active'",
+      [id, userId]
+    );
+
+    if (attemptRes.rows.length === 0) {
+      return res.status(404).json({ error: "Active exam session not found or already submitted." });
+    }
+
+    const attempt = attemptRes.rows[0];
+    const moduleId = attempt.module_id;
+
+    // Merge answers
+    const finalAnswers = {
+      ...(attempt.answers || {}),
+      ...(answers || {})
+    };
+    // Delete metadata properties for score calculation
+    delete finalAnswers._question_order;
+
+    // 2. Fetch module configuration
+    const modRes = await pool.query("SELECT * FROM modules WHERE id = $1", [moduleId]);
+    if (modRes.rows.length === 0) {
+      return res.status(404).json({ error: "Module not found." });
+    }
+    const activeModule = modRes.rows[0];
+    const modPositive = activeModule.marks_per_question !== null ? Number(activeModule.marks_per_question) : 1;
+    const modNegative = activeModule.negative_marks !== null ? Number(activeModule.negative_marks) : 0.5;
+
+    // 3. Fetch correct answers from DB
+    const questionsRes = await pool.query(
+      "SELECT id, correct_answer_index FROM questions WHERE module_id = $1",
+      [moduleId]
+    );
+    const dbQuestions = questionsRes.rows;
+
+    let finalScore = 0;
+    let correctCount = 0;
+    let maxPossibleScore = Number(activeModule.total_marks) || 0;
+
+    if (!maxPossibleScore) {
+      dbQuestions.forEach((q) => {
+        const qPos = (q.positive_marks_override !== undefined && q.positive_marks_override !== null) ? Number(q.positive_marks_override) : modPositive;
+        maxPossibleScore += qPos;
+      });
+    }
+
+    dbQuestions.forEach((q) => {
+      const qPos = (q.positive_marks_override !== undefined && q.positive_marks_override !== null) ? Number(q.positive_marks_override) : modPositive;
+      const qNeg = modNegative; 
+
+      const studentAnswer = finalAnswers[q.id];
+      if (studentAnswer !== undefined && studentAnswer !== null) {
+        if (Number(studentAnswer) === Number(q.correct_answer_index)) {
+          finalScore += qPos;
+          correctCount += 1;
+        } else {
+          finalScore -= qNeg;
+        }
+      }
+    });
+
+    finalScore = Math.max(0, finalScore);
+    const scorePercentage = maxPossibleScore > 0 ? Math.round((finalScore / maxPossibleScore) * 100) : 0;
+    const xpEarned = correctCount * 10;
+
+    // 4. Save score to users table
+    const userRes = await pool.query("SELECT name, email, branch, semester, xp FROM users WHERE id = $1", [userId]);
+    if (userRes.rows.length > 0) {
+      const dbUser = userRes.rows[0];
+      const currentXP = Number(dbUser.xp) || 0;
+
+      let moduleScores = {};
+      try {
+        const scoresRes = await pool.query("SELECT module_scores FROM users WHERE id = $1", [userId]);
+        moduleScores = scoresRes.rows[0]?.module_scores || {};
+        if (typeof moduleScores === "string") {
+          moduleScores = JSON.parse(moduleScores);
+        }
+      } catch (colErr) {
+        moduleScores = {};
+      }
+
+      const prevScore = moduleScores[moduleId];
+      if (prevScore === undefined || scorePercentage > Number(prevScore)) {
+        moduleScores[moduleId] = scorePercentage;
+        const newXP = currentXP + xpEarned;
+        const newLevel = Math.max(1, Math.floor(newXP / 100) + 1);
+
+        await pool.query(
+          "UPDATE users SET module_scores = $1, xp = $2, level = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4",
+          [JSON.stringify(moduleScores), newXP, newLevel, userId]
+        );
+      }
+
+      // 5. Save First Attempt ONLY if user has not attempted this module before
+      try {
+        let companyName = null;
+        let branchName = null;
+
+        if (activeModule.module_type === "company" && activeModule.branch_id) {
+          const compRes = await pool.query("SELECT name FROM companies WHERE id = $1", [activeModule.branch_id]);
+          if (compRes.rows.length > 0) {
+            companyName = compRes.rows[0].name;
+          }
+        } else if (activeModule.parent_id) {
+          const branchRes = await pool.query("SELECT name FROM hierarchy_nodes WHERE id = $1", [activeModule.parent_id]);
+          if (branchRes.rows.length > 0) {
+            branchName = branchRes.rows[0].name;
+          }
+        }
+
+        await pool.query(
+          `INSERT INTO first_attempts (
+            id, user_id, user_name, user_email, student_branch, student_semester,
+            module_id, module_title, module_type, company_name, branch_name,
+            score, correct_count, total_questions, xp_earned
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          ON CONFLICT (user_id, module_id) DO NOTHING`,
+          [
+            crypto.randomUUID(),
+            userId,
+            dbUser.name,
+            dbUser.email,
+            dbUser.branch,
+            dbUser.semester,
+            moduleId,
+            activeModule.title,
+            activeModule.module_type,
+            companyName,
+            branchName,
+            scorePercentage,
+            correctCount,
+            dbQuestions.length,
+            xpEarned
+          ]
+        );
+      } catch (attemptErr) {
+        console.error("Failed to log first attempt:", attemptErr.message);
+      }
+    }
+
+    // 6. Update attempt status
+    await pool.query(
+      "UPDATE exam_attempts SET status = 'submitted', last_activity = $1 WHERE id = $2",
+      [Date.now(), id]
+    );
+
+    // Return the correct answers map to let the student review instantly
+    const correctAnswersMap = {};
+    dbQuestions.forEach((q) => {
+      correctAnswersMap[q.id] = q.correct_answer_index;
+    });
+
+    res.json({
+      success: true,
+      score: scorePercentage,
+      correctCount,
+      totalQuestions: dbQuestions.length,
+      xpEarned,
+      correctAnswers: correctAnswersMap
+    });
+  } catch (err) {
+    console.error("Submit exam attempt error:", err);
+    res.status(500).json({ error: "Failed to submit and grade exam." });
   }
 };
